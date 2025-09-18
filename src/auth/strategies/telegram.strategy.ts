@@ -1,8 +1,6 @@
-import { Injectable } from '@nestjs/common';
-import { PassportStrategy } from '@nestjs/passport';
-import { Strategy } from 'passport-custom';
+// Этот файл служит для определения интерфейса TelegramUser.
+// Сама стратегия не нужна, так как валидация происходит вручную в auth.service.
 
-// Определяем интерфейс для данных пользователя из Telegram
 export interface TelegramUser {
   id: number;
   first_name: string;
@@ -10,14 +8,4 @@ export interface TelegramUser {
   username?: string;
   language_code?: string;
   photo_url?: string;
-}
-
-@Injectable()
-export class TelegramStrategy extends PassportStrategy(Strategy, 'telegram') {
-  constructor() {
-    // В этой стратегии мы не используем стандартный механизм Passport,
-    // так как проверка происходит вручную в auth.service.
-    // Этот файл в основном служит для определения интерфейса TelegramUser.
-    super();
-  }
 }
