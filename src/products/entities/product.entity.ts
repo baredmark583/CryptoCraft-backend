@@ -1,5 +1,5 @@
 import { Entity, Column, ManyToOne } from 'typeorm';
-import { BaseEntity } from '../../database/base.entity';
+import { BaseEntity, DecimalTransformer } from '../../database/base.entity';
 import { User } from '../../users/entities/user.entity';
 
 // Типы для jsonb полей, взяты из frontend/types.ts для справки
@@ -30,10 +30,20 @@ export class Product extends BaseEntity {
   @Column('text')
   description: string;
 
-  @Column('decimal', { precision: 10, scale: 2, nullable: true })
+  @Column('decimal', {
+    precision: 10,
+    scale: 2,
+    nullable: true,
+    transformer: new DecimalTransformer(),
+  })
   price?: number;
 
-  @Column('decimal', { precision: 10, scale: 2, nullable: true })
+  @Column('decimal', {
+    precision: 10,
+    scale: 2,
+    nullable: true,
+    transformer: new DecimalTransformer(),
+  })
   salePrice?: number;
 
   @Column('simple-array')
@@ -72,10 +82,20 @@ export class Product extends BaseEntity {
   @Column({ default: false })
   giftWrapAvailable?: boolean;
 
-  @Column('decimal', { precision: 10, scale: 2, nullable: true })
+  @Column('decimal', {
+    precision: 10,
+    scale: 2,
+    nullable: true,
+    transformer: new DecimalTransformer(),
+  })
   giftWrapPrice?: number;
-  
-  @Column('decimal', { precision: 10, scale: 2, nullable: true })
+
+  @Column('decimal', {
+    precision: 10,
+    scale: 2,
+    nullable: true,
+    transformer: new DecimalTransformer(),
+  })
   purchaseCost?: number;
 
   @Column({ nullable: true })
@@ -88,16 +108,21 @@ export class Product extends BaseEntity {
   @Column({ nullable: true })
   b2bMinQuantity?: number;
 
-  @Column('decimal', { precision: 10, scale: 2, nullable: true })
+  @Column('decimal', {
+    precision: 10,
+    scale: 2,
+    nullable: true,
+    transformer: new DecimalTransformer(),
+  })
   b2bPrice?: number;
-  
+
   // Service
   @Column({ nullable: true })
   turnaroundTime?: string;
 
   @Column({ nullable: true })
   serviceLocation?: 'REMOTE' | 'ON-SITE';
-  
+
   // Electronics
   @Column({ nullable: true })
   warrantyDays?: number;
@@ -112,10 +137,20 @@ export class Product extends BaseEntity {
   @Column('bigint', { nullable: true })
   auctionEnds?: number;
 
-  @Column('decimal', { precision: 10, scale: 2, nullable: true })
+  @Column('decimal', {
+    precision: 10,
+    scale: 2,
+    nullable: true,
+    transformer: new DecimalTransformer(),
+  })
   startingBid?: number;
-  
-  @Column('decimal', { precision: 10, scale: 2, nullable: true })
+
+  @Column('decimal', {
+    precision: 10,
+    scale: 2,
+    nullable: true,
+    transformer: new DecimalTransformer(),
+  })
   currentBid?: number;
 
   @Column('simple-array', { nullable: true })
@@ -124,7 +159,12 @@ export class Product extends BaseEntity {
   @Column({ nullable: true })
   winnerId?: string;
 
-  @Column('decimal', { precision: 10, scale: 2, nullable: true })
+  @Column('decimal', {
+    precision: 10,
+    scale: 2,
+    nullable: true,
+    transformer: new DecimalTransformer(),
+  })
   finalPrice?: number;
 
   // Authentication
@@ -143,7 +183,7 @@ export class Product extends BaseEntity {
 
   @Column({ nullable: true })
   nftTokenId?: string;
-  
+
   @Column({ nullable: true })
   nftContractAddress?: string;
 }
