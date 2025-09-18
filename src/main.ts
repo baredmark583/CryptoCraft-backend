@@ -26,7 +26,7 @@ async function bootstrap() {
     console.log('CORS enabled for all origins (development mode)');
   }
 
-  // FIX: `configService` is now correctly typed, so this generic call is valid.
+  // FIX: `configService` is now correctly typed, so this generic call i s valid.
   const port = configService.get<number>('PORT') || 3001;
   
   await app.listen(port);
