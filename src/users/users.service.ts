@@ -4,6 +4,7 @@ import { Repository } from 'typeorm';
 import { User } from './entities/user.entity';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { TelegramUser } from '../auth/strategies/telegram.strategy';
 
 @Injectable()
 export class UsersService {
@@ -15,6 +16,33 @@ export class UsersService {
   create(createUserDto: CreateUserDto): Promise<User> {
     const user = this.usersRepository.create(createUserDto);
     return this.usersRepository.save(user);
+  }
+
+  async findByTelegramIdOrCreate(telegramUser: TelegramUser): Promise<User> {
+    const existingUser = await this.usersRepository.findOne({
+      where: { telegramId: telegramUser.id },
+    });
+
+    if (existingUser) {
+      // Опционально: обновить данные пользователя (имя, аватар) при каждом входе
+      existingUser.name = `${telegramUser.first_name} ${telegramUser.last_name || ''}`.trim();
+      existingUser.avatarUrl = telegramUser.photo_url || 'default_avatar_url'; // Укажите URL аватара по умолчанию
+      return this.usersRepository.save(existingUser);
+    }
+
+    // Создаем нового пользователя
+    const newUser = this.usersRepository.create({
+      telegramId: telegramUser.id,
+      name: `${telegramUser.first_name} ${telegramUser.last_name || ''}`.trim(),
+      avatarUrl: telegramUser.photo_url || 'default_avatar_url',
+      // Здесь можно установить другие значения по умолчанию
+      rating: 0,
+      following: [],
+      balance: 0,
+      commissionOwed: 0,
+    });
+
+    return this.usersRepository.save(newUser);
   }
 
   findAll(): Promise<User[]> {

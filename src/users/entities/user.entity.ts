@@ -18,6 +18,9 @@ export interface ShippingAddress {
 
 @Entity()
 export class User extends BaseEntity {
+  @Column({ type: 'bigint', unique: true, nullable: true })
+  telegramId: number;
+
   @Column()
   name: string;
 

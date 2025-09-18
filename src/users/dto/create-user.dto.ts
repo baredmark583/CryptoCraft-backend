@@ -3,6 +3,10 @@ import { Type } from 'class-transformer';
 import { VerificationLevel, BusinessInfo, ShippingAddress } from '../entities/user.entity';
 
 export class CreateUserDto {
+  @IsNumber()
+  @IsOptional()
+  telegramId?: number;
+
   @IsString()
   @IsNotEmpty()
   name: string;
