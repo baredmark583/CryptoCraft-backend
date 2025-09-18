@@ -1,4 +1,4 @@
-// FIX: Add a triple-slash directive to ensure multer types are loaded, which resolves the 'Express.Multer.File' type error.
+// Fix: Added a triple-slash directive to include multer type definitions which resolves the 'Express.Multer.File' type error.
 /// <reference types="multer" />
 import { Controller, Post, UseInterceptors, UploadedFile, UseGuards } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';

@@ -1,6 +1,7 @@
 import { Entity, Column, OneToMany } from 'typeorm';
 import { BaseEntity, DecimalTransformer } from '../../database/base.entity';
 import { Product } from '../../products/entities/product.entity';
+import { Order } from '../../orders/entities/order.entity';
 
 export type VerificationLevel = 'NONE' | 'PRO';
 
@@ -78,6 +79,12 @@ export class User extends BaseEntity {
 
   @OneToMany(() => Product, (product) => product.seller)
   products: Product[];
+
+  @OneToMany(() => Order, (order) => order.buyer)
+  purchases: Order[];
+
+  @OneToMany(() => Order, (order) => order.seller)
+  sales: Order[];
 
   // Поле reviews будет добавлено позже как связь с сущностью Review
 }

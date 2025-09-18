@@ -1,4 +1,4 @@
-// FIX: Add a triple-slash directive to ensure multer types are loaded, which resolves the 'Express.Multer.File' type error.
+// Fix: Added a triple-slash directive to include multer type definitions which resolves the 'Express.Multer.File' type error.
 /// <reference types="multer" />
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { v2 as cloudinary } from 'cloudinary';

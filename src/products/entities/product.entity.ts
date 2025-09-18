@@ -1,6 +1,7 @@
-import { Entity, Column, ManyToOne } from 'typeorm';
+import { Entity, Column, ManyToOne, OneToMany } from 'typeorm';
 import { BaseEntity, DecimalTransformer } from '../../database/base.entity';
 import { User } from '../../users/entities/user.entity';
+import { OrderItem } from '../../orders/entities/order-item.entity';
 
 // Типы для jsonb полей, взяты из frontend/types.ts для справки
 export interface VariantAttribute {
@@ -186,4 +187,7 @@ export class Product extends BaseEntity {
 
   @Column({ nullable: true })
   nftContractAddress?: string;
+  
+  @OneToMany(() => OrderItem, (orderItem) => orderItem.product)
+  orderItems: OrderItem[];
 }
