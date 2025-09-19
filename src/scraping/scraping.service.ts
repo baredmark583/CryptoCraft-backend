@@ -33,27 +33,20 @@ export class ScrapingService {
 
       // Загружаем HTML в Cheerio для очистки перед отправкой в AI
       const $ = cheerio.load(html);
+      
+      const body = $('body');
 
       // Удаляем ненужные теги, чтобы уменьшить количество токенов и шум для AI
-      $(
+      body.find(
         'script, style, link[rel="stylesheet"], noscript, iframe, footer, header, nav, svg, path',
       ).remove();
 
-      // Пытаемся найти наиболее релевантную область контента
-      let mainContent = $(
-        '#root, #main, #content, #app, [role="main"], main, body',
-      ).first();
-
-      if (mainContent.length === 0) {
-        mainContent = $('body');
-      }
-
       // Удаляем все атрибуты из элементов для дальнейшей очистки HTML
-      mainContent.find('*').each(function () {
+      body.find('*').each(function () {
         this.attribs = {};
       });
 
-      const cleanHtml = mainContent.html();
+      const cleanHtml = body.html();
 
       if (!cleanHtml || cleanHtml.trim().length < 200) {
         throw new Error(
