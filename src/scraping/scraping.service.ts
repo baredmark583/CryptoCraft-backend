@@ -34,7 +34,7 @@ export class ScrapingService {
       // --- NEW APPROACH BASED ON USER FEEDBACK ---
       // We will specifically target the main content and aside sections
       // as suggested, making the extraction more robust for OLX.
-      const mainContent = $('[data-testid="main-content"]');
+      const mainContent = $('[data-testid="main"]');
       const asideContent = $('[data-testid="aside"]');
 
       // If these specific containers don't exist, we can't reliably parse the page.
