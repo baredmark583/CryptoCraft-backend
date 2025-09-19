@@ -41,9 +41,21 @@ export class ScrapingService {
         'script, style, link[rel="stylesheet"], noscript, iframe, footer, header, nav, svg, path',
       ).remove();
 
-      // Удаляем все атрибуты из элементов для дальнейшей очистки HTML
+      // Удаляем все атрибуты, КРОМЕ 'src' и 'srcset' у изображений
       body.find('*').each(function () {
-        this.attribs = {};
+        const element = $(this);
+        const preservedAttrs: { [key: string]: string } = {};
+        
+        // Сохраняем src и srcset только для тегов <img>
+        if (element.is('img')) {
+            const src = element.attr('src');
+            const srcset = element.attr('srcset');
+            if (src) preservedAttrs.src = src;
+            if (srcset) preservedAttrs.srcset = srcset;
+        }
+
+        // Заменяем все атрибуты элемента только сохраненными (для img) или пустым объектом (для всех остальных)
+        this.attribs = preservedAttrs;
       });
 
       const cleanHtml = body.html();
