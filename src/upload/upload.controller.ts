@@ -1,5 +1,5 @@
 
-import { Controller, Post, UseInterceptors, UploadedFile, UseGuards } from '@nestjs/common';
+import { Controller, Post, UseInterceptors, UploadedFile, UseGuards, Body } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { UploadService } from './upload.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -14,5 +14,11 @@ export class UploadController {
   // Fix: Removed Express.Multer.File type annotation to resolve missing type definition errors.
   uploadFile(@UploadedFile() file) {
     return this.uploadService.uploadFile(file);
+  }
+
+  @Post('url')
+  @UseGuards(JwtAuthGuard)
+  uploadFileFromUrl(@Body('url') imageUrl: string) {
+    return this.uploadService.uploadFileFromUrl(imageUrl);
   }
 }
