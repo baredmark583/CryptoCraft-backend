@@ -1,107 +1,74 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import axios from 'axios';
 import * as cheerio from 'cheerio';
-import puppeteer from 'puppeteer';
 
 @Injectable()
 export class ScrapingService {
+  constructor(private readonly configService: ConfigService) {}
+
   async scrapeUrl(url: string): Promise<{ cleanText: string }> {
     if (!url) {
       throw new BadRequestException('URL is required');
     }
-    let browser;
+
+    // Используем общедоступный прокси для обхода CORS и базовых мер защиты от ботов.
+    // В продакшене это был бы специализированный API для скрапинга.
+    const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(
+      url,
+    )}`;
+
     try {
-      // Для production-окружений, таких как Render, требуются специальные аргументы.
-      browser = await puppeteer.launch({
-        headless: true,
-        args: [
-          '--no-sandbox',
-          '--disable-setuid-sandbox',
-          '--disable-dev-shm-usage',
-          '--disable-accelerated-2d-canvas',
-          '--no-first-run',
-          '--no-zygote',
-          '--single-process', // Может понадобиться или нет
-          '--disable-gpu',
-        ],
+      const { data: html } = await axios.get(proxyUrl, {
+        headers: {
+          'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36',
+        },
+        timeout: 45000, // 45 секунд
       });
-      const page = await browser.newPage();
 
-      // Имитируем браузер реального пользователя
-      await page.setUserAgent(
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/527.36',
-      );
-      await page.setViewport({ width: 1280, height: 800 });
+      if (!html) {
+        throw new Error('Получено пустое HTML-содержимое от прокси.');
+      }
 
-      // Переходим на страницу, ожидая полной загрузки
-      await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 40000 });
-
-      // Дополнительное ожидание может помочь сайтам с динамической подгрузкой
-      await page.waitForTimeout(2000);
-
-      const html = await page.content();
-
+      // Загружаем HTML в Cheerio для очистки перед отправкой в AI
       const $ = cheerio.load(html);
 
-      // Исправленные селекторы на основе отзыва пользователя и анализа
-      const mainContent = $('[data-testid="main"]');
-      const asideContent = $('[data-testid="aside"]');
+      // Удаляем ненужные теги, чтобы уменьшить количество токенов и шум для AI
+      $(
+        'script, style, link[rel="stylesheet"], noscript, iframe, footer, header, nav, svg, path',
+      ).remove();
 
-      if (mainContent.length === 0 && asideContent.length === 0) {
-        // Это может произойти, если мы получили страницу с CAPTCHA
+      // Пытаемся найти наиболее релевантную область контента
+      let mainContent = $(
+        '#root, #main, #content, #app, [role="main"], main, body',
+      ).first();
+
+      if (mainContent.length === 0) {
+        mainContent = $('body');
+      }
+
+      // Удаляем все атрибуты из элементов для дальнейшей очистки HTML
+      mainContent.find('*').each(function () {
+        this.attribs = {};
+      });
+
+      const cleanHtml = mainContent.html();
+
+      if (!cleanHtml || cleanHtml.trim().length < 200) {
         throw new Error(
-          'Не удалось найти ключевые области контента. Сайт, вероятно, защищен CAPTCHA.',
+          'Извлеченный контент слишком короткий, возможно, страница была заблокирована.',
         );
       }
 
-      const title = asideContent.find('h1').text().trim();
-      const price = asideContent
-        .find('[data-testid="ad-price-container"]')
-        .text()
-        .trim();
-
-      const descriptionParts: string[] = [];
-      mainContent.find('div[data-cy="ad_description"]').each((_i, el) => {
-        descriptionParts.push($(el).text().trim());
-      });
-      const description = descriptionParts.join('\n\n');
-
-      const imageUrls = new Set<string>();
-      $('img').each((_i, el) => {
-        const src = $(el).attr('src');
-        if (src && (src.startsWith('http') || src.startsWith('//'))) {
-          const fullUrl = src.startsWith('//') ? `https:${src}` : src;
-          // Добавляем фильтрацию, чтобы избежать нерелевантных маленьких изображений/иконок
-          if (
-            !fullUrl.includes('placeholder') &&
-            !fullUrl.includes('avatar') &&
-            !fullUrl.endsWith('.svg')
-          ) {
-            imageUrls.add(fullUrl);
-          }
-        }
-      });
-
-      const cleanText = `Source URL: ${url}\nTitle: ${title}\nPrice: ${price}\nDescription: ${description.substring(
-        0,
-        4000,
-      )}\nImage URLs: ${Array.from(imageUrls).slice(0, 10).join('\n')}`;
-
-      if (!title && !description) {
-        throw new Error(
-          'Не удалось извлечь значимый контент. Возможно, страница загрузилась некорректно.',
-        );
-      }
-
-      return { cleanText };
+      // Возвращаем очищенный HTML-контент
+      return { cleanText: cleanHtml };
     } catch (error) {
-      console.error(`Scraping error for ${url}:`, error.message);
+      console.error(`Ошибка сбора данных для ${url}:`, error.message);
+      // Предоставляем более понятное сообщение об ошибке
       throw new BadRequestException(
-        `Не удалось получить данные со страницы ${url}. Сайт может быть защищен от автоматического сбора данных.`,
+        `Не удалось получить данные со страницы. Сайт может быть недоступен или защищен от сбора данных. Попробуйте другую ссылку.`,
       );
-    } finally {
-      if (browser) {
-        await browser.close();
-      }
     }
   }
 }
