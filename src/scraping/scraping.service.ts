@@ -9,54 +9,66 @@ export class ScrapingService {
       throw new BadRequestException('URL is required');
     }
     try {
-      // Use a public CORS proxy as a last resort to bypass anti-bot measures.
-      // This is not recommended for production due to reliability and rate limits,
-      // but it's a viable solution within the project's constraints.
+      // We continue to use a proxy, but we'll add a User-Agent header
+      // to better simulate a request from a real browser.
       const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(
         url,
       )}`;
 
-      const response = await axios.get(proxyUrl, { timeout: 20000 }); // Increased timeout for proxy
+      const response = await axios.get(proxyUrl, {
+        timeout: 20000,
+        headers: {
+          // This header helps us look more like a standard web browser.
+          'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36',
+        },
+      });
 
       if (response.status !== 200 || !response.data.contents) {
-        throw new Error('Failed to retrieve HTML content via proxy.');
+        throw new Error(`Proxy request failed with status ${response.status}`);
       }
 
       const html = response.data.contents;
       const $ = cheerio.load(html);
 
-      // --- Enhanced Content Extraction ---
-      // Prioritize specific, stable attributes (like data-cy) and then fall back to generic tags.
-      const title =
-        $('h1[data-cy="ad_title"]').text().trim() ||
-        $('h1').first().text().trim();
+      // --- NEW APPROACH BASED ON USER FEEDBACK ---
+      // We will specifically target the main content and aside sections
+      // as suggested, making the extraction more robust for OLX.
+      const mainContent = $('[data-testid="main-content"]');
+      const asideContent = $('[data-testid="aside"]');
 
-      const description =
-        $('div[data-cy="ad_description"]').text().trim() ||
-        $('#description').text().trim() ||
-        $('.description').text().trim();
-        
-      const price =
-        $('h3[data-testid="ad-price-container"]').text().trim() ||
-        $('[class*="price"]').first().text().trim();
+      // If these specific containers don't exist, we can't reliably parse the page.
+      if (mainContent.length === 0 && asideContent.length === 0) {
+        throw new Error(
+          'Could not find key content areas on the page. The site structure may have changed or is protected.',
+        );
+      }
 
-      // Use a Set to avoid duplicate image URLs
+      // Now we search for details *within* these containers.
+      const title = asideContent.find('h1').text().trim();
+      const price = asideContent
+        .find('h3[data-testid="ad-price-container"]')
+        .text()
+        .trim();
+      // For description, combine different parts if necessary
+      const descriptionParts: string[] = [];
+      mainContent.find('div[data-cy="ad_description"]').each((i, el) => {
+        descriptionParts.push($(el).text().trim());
+      });
+      const description = descriptionParts.join('\n\n');
+
       const imageUrls = new Set<string>();
-      $('img').each((i, el) => {
+      mainContent.find('img').each((i, el) => {
         const src = $(el).attr('src');
         if (src && (src.startsWith('http') || src.startsWith('//'))) {
-          // Normalize URL
           const fullUrl = src.startsWith('//') ? `https:${src}` : src;
-          // Filter out tiny images like icons or spacers
-          const width = $(el).attr('width');
-          const height = $(el).attr('height');
-          if ((!width || parseInt(width) > 50) && (!height || parseInt(height) > 50)) {
+          // A simple filter to avoid tiny icons. OLX images are usually large.
+          if (!fullUrl.includes('placeholder')) {
             imageUrls.add(fullUrl);
           }
         }
       });
 
-      // Combine the extracted data into a concise text block for the AI
       const cleanText = `
         Source URL: ${url}
         Title: ${title}
@@ -64,15 +76,16 @@ export class ScrapingService {
         Description: ${description.substring(0, 4000)}
         Image URLs: ${Array.from(imageUrls).slice(0, 10).join('\n')}
       `;
-      
+
       if (!title && !description) {
-        throw new Error("Could not extract meaningful content. The page might be protected by JavaScript challenges.");
+        throw new Error(
+          'Could not extract meaningful content from the targeted sections.',
+        );
       }
 
       return { cleanText };
     } catch (error) {
       console.error(`Scraping error for ${url}:`, error.message);
-      // Provide a more user-friendly error message
       throw new BadRequestException(
         `Не удалось получить данные со страницы ${url}. Сайт может быть защищен от автоматического сбора данных.`,
       );
