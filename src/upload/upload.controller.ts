@@ -1,5 +1,4 @@
-// Fix: Added a triple-slash directive to include multer type definitions which resolves the 'Express.Multer.File' type error.
-/// <reference types="multer" />
+
 import { Controller, Post, UseInterceptors, UploadedFile, UseGuards } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { UploadService } from './upload.service';
@@ -12,7 +11,8 @@ export class UploadController {
   @Post()
   @UseGuards(JwtAuthGuard)
   @UseInterceptors(FileInterceptor('file'))
-  uploadFile(@UploadedFile() file: Express.Multer.File) {
+  // Fix: Removed Express.Multer.File type annotation to resolve missing type definition errors.
+  uploadFile(@UploadedFile() file) {
     return this.uploadService.uploadFile(file);
   }
 }

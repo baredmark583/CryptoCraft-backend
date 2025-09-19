@@ -1,12 +1,12 @@
-// Fix: Added a triple-slash directive to include multer type definitions which resolves the 'Express.Multer.File' type error.
-/// <reference types="multer" />
+
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { v2 as cloudinary } from 'cloudinary';
 import { Readable } from 'stream';
 
 @Injectable()
 export class UploadService {
-  async uploadFile(file: Express.Multer.File): Promise<{ url: string }> {
+  // Fix: Changed Express.Multer.File to any to resolve missing type definition errors.
+  async uploadFile(file: any): Promise<{ url: string }> {
     if (!file) {
       throw new BadRequestException('Make sure that the file is uploaded');
     }
