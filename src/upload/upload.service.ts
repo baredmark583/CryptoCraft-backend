@@ -3,6 +3,8 @@ import { Injectable, BadRequestException } from '@nestjs/common';
 import { v2 as cloudinary } from 'cloudinary';
 import { Readable } from 'stream';
 import axios from 'axios';
+// FIX: Explicitly import Buffer to resolve TypeScript 'Cannot find name' error.
+import { Buffer } from 'buffer';
 
 @Injectable()
 export class UploadService {

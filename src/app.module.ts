@@ -22,7 +22,8 @@ import { ScrapingModule } from './scraping/scraping.module';
       useFactory: (configService: ConfigService) => ({
         type: 'postgres',
         url: configService.get<string>('DATABASE_URL'),
-        entities: [__dirname + '/**/*.entity{.ts,.js}'],
+        // FIX: Replaced problematic `__dirname` with `autoLoadEntities` for modern entity discovery in NestJS.
+        autoLoadEntities: true,
         synchronize: true, // Внимание: true только для разработки!
         logging: true,
       }),
