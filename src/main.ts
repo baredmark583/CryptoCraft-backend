@@ -16,11 +16,17 @@ async function bootstrap() {
   }));
 
   // Включаем CORS для взаимодействия с фронтендом
+  // FIX: Update CORS policy to allow requests from the Telegram wallet proxy in addition to the frontend origin. This is necessary for the TonConnect manifest to be fetched correctly.
+  const allowedOrigins = ['https://walletbot.me'];
+  if (frontendUrl) {
+    allowedOrigins.push(frontendUrl);
+  }
+  
   if (frontendUrl) {
     app.enableCors({
-      origin: frontendUrl,
+      origin: allowedOrigins,
     });
-    console.log(`CORS enabled for origin: ${frontendUrl}`);
+    console.log(`CORS enabled for origins: ${allowedOrigins.join(', ')}`);
   } else {
     app.enableCors(); // Fallback for local development
     console.log('CORS enabled for all origins (development mode)');
