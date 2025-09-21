@@ -22,9 +22,9 @@ import { ScrapingModule } from './scraping/scraping.module';
       useFactory: (configService: ConfigService) => ({
         type: 'postgres',
         url: configService.get<string>('DATABASE_URL'),
-        // FIX: Replaced problematic `__dirname` with `autoLoadEntities` for modern entity discovery in NestJS.
         autoLoadEntities: true,
-        synchronize: true, // Внимание: true только для разработки! Отключено для предотвращения сбоев из-за неконсистентных данных.
+        synchronize: true, // DEV only: automatically creates DB schema.
+        dropSchema: true, // DEV only: drops schema on every app start. Good for fixing sync errors.
         logging: true,
       }),
     }),
