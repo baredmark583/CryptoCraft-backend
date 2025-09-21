@@ -24,7 +24,7 @@ import { ScrapingModule } from './scraping/scraping.module';
         url: configService.get<string>('DATABASE_URL'),
         // FIX: Replaced problematic `__dirname` with `autoLoadEntities` for modern entity discovery in NestJS.
         autoLoadEntities: true,
-        synchronize: false, // Внимание: true только для разработки! Отключено для предотвращения сбоев из-за неконсистентных данных.
+        synchronize: true, // Внимание: true только для разработки! Отключено для предотвращения сбоев из-за неконсистентных данных.
         logging: true,
       }),
     }),
