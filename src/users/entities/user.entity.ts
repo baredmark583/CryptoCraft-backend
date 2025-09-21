@@ -1,15 +1,8 @@
-import { Entity, Column, OneToMany } from 'typeorm';
-import { BaseEntity, DecimalTransformer } from '../../database/base.entity';
+import { Entity, Column, OneToMany, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn } from 'typeorm';
 import { Product } from '../../products/entities/product.entity';
 import { Order } from '../../orders/entities/order.entity';
 
-export type VerificationLevel = 'NONE' | 'PRO';
-
-// Эти типы импортированы для справки из frontend/types.ts
-// В TypeORM они будут представлены через jsonb
-export interface BusinessInfo {
-  registrationNumber: string;
-}
+// Define jsonb types directly here as they are simple
 export interface ShippingAddress {
   city: string;
   postOffice: string;
@@ -17,10 +10,17 @@ export interface ShippingAddress {
   phoneNumber: string;
 }
 
-@Entity()
-export class User extends BaseEntity {
-  @Column({ type: 'bigint', unique: true, nullable: true })
-  telegramId: number;
+export interface BusinessInfo {
+  registrationNumber: string;
+}
+
+@Entity('users')
+export class User {
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
+  
+  @Column({ unique: true, nullable: true })
+  telegramId?: number;
 
   @Column()
   name: string;
@@ -30,52 +30,40 @@ export class User extends BaseEntity {
 
   @Column({ nullable: true })
   headerImageUrl?: string;
-
-  @Column('decimal', {
-    precision: 2,
-    scale: 1,
-    default: 0.0,
-    transformer: new DecimalTransformer(),
-  })
+  
+  @Column('decimal', { precision: 2, scale: 1, default: 0 })
   rating: number;
+  
+  @Column('simple-array', { default: '' })
+  following: string[];
+  
+  @Column('decimal', { precision: 10, scale: 2, default: 0 })
+  balance: number;
 
+  @Column('decimal', { precision: 10, scale: 2, default: 0 })
+  commissionOwed: number;
+  
   @Column({
     type: 'enum',
     enum: ['NONE', 'PRO'],
     default: 'NONE',
   })
-  verificationLevel: VerificationLevel;
-
-  @Column('jsonb', { nullable: true })
-  businessInfo?: BusinessInfo;
-
-  @Column('simple-array', { default: [] })
-  following: string[];
-
-  @Column('decimal', {
-    precision: 10,
-    scale: 2,
-    default: 0.0,
-    transformer: new DecimalTransformer(),
-  })
-  balance: number;
-
-  @Column('decimal', {
-    precision: 10,
-    scale: 2,
-    default: 0.0,
-    transformer: new DecimalTransformer(),
-  })
-  commissionOwed: number;
-
-  @Column({ nullable: true, unique: true })
+  verificationLevel: 'NONE' | 'PRO';
+  
+  @Column({ nullable: true })
   affiliateId?: string;
-
-  @Column('jsonb', { nullable: true })
-  defaultShippingAddress?: ShippingAddress;
 
   @Column({ nullable: true })
   phoneNumber?: string;
+  
+  @Column('jsonb', { nullable: true })
+  defaultShippingAddress?: ShippingAddress;
+  
+  @Column('jsonb', { nullable: true })
+  businessInfo?: BusinessInfo;
+  
+  @Column({ nullable: true, unique: true })
+  tonWalletAddress?: string;
 
   @OneToMany(() => Product, (product) => product.seller)
   products: Product[];
@@ -83,8 +71,13 @@ export class User extends BaseEntity {
   @OneToMany(() => Order, (order) => order.buyer)
   purchases: Order[];
 
+  // FIX: Correct the inverse relation to point to the 'seller' property on the Order entity.
   @OneToMany(() => Order, (order) => order.seller)
   sales: Order[];
 
-  // Поле reviews будет добавлено позже как связь с сущностью Review
+  @CreateDateColumn()
+  createdAt: Date;
+
+  @UpdateDateColumn()
+  updatedAt: Date;
 }

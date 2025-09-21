@@ -54,4 +54,7 @@ export class Order extends BaseEntity {
 
   @Column({ nullable: true })
   trackingNumber?: string;
+  
+  @Column({ nullable: true })
+  transactionHash?: string;
 }

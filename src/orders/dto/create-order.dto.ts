@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsArray, IsEnum, IsObject, IsOptional, ValidateNested, IsNumber } from 'class-validator';
+import { IsArray, IsEnum, IsObject, IsOptional, ValidateNested, IsNumber, IsString } from 'class-validator';
 import { ShippingAddress } from '../../users/entities/user.entity';
 
 class CartItemDto {
@@ -35,4 +35,8 @@ export class CreateOrderDto {
   
   @IsObject()
   shippingAddress: ShippingAddress;
+  
+  @IsString()
+  @IsOptional()
+  transactionHash?: string;
 }
