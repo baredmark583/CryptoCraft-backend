@@ -15,10 +15,10 @@ export type OrderStatus =
 
 @Entity('orders') // Explicitly name the table 'orders'
 export class Order extends BaseEntity {
-  @ManyToOne(() => User, (user) => user.purchases, { eager: true })
+  @ManyToOne(() => User, (user) => user.purchases, { eager: true, onDelete: 'SET NULL', nullable: true })
   buyer: User;
 
-  @ManyToOne(() => User, (user) => user.sales, { eager: true })
+  @ManyToOne(() => User, (user) => user.sales, { eager: true, onDelete: 'SET NULL', nullable: true })
   seller: User;
 
   @OneToMany(() => OrderItem, (item) => item.order, { cascade: true, eager: true })
