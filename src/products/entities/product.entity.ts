@@ -56,11 +56,7 @@ export class Product extends BaseEntity {
   @Column()
   category: string;
 
-  @ManyToOne(() => User, (user) => user.products, {
-    eager: true,
-    onDelete: 'SET NULL', // If a user is deleted, set the seller to null
-    nullable: true,
-  })
+  @ManyToOne(() => User, (user) => user.products, { eager: true }) // eager: true - автоматически подгружать продавца
   seller: User;
 
   @Column('jsonb', { default: {} })

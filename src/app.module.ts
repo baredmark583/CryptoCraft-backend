@@ -9,7 +9,6 @@ import { AuthModule } from './auth/auth.module';
 import { UploadModule } from './upload/upload.module';
 import { OrdersModule } from './orders/orders.module';
 import { ScrapingModule } from './scraping/scraping.module';
-import { AiModule } from './ai/ai.module';
 
 @Module({
   imports: [
@@ -23,9 +22,9 @@ import { AiModule } from './ai/ai.module';
       useFactory: (configService: ConfigService) => ({
         type: 'postgres',
         url: configService.get<string>('DATABASE_URL'),
+        // FIX: Replaced problematic `__dirname` with `autoLoadEntities` for modern entity discovery in NestJS.
         autoLoadEntities: true,
-        synchronize: true, // DEV only: automatically creates DB schema.
-        dropSchema: true, // DEV only: drops schema on every app start. Good for fixing sync errors.
+        synchronize: true, // Внимание: true только для разработки!
         logging: true,
       }),
     }),
@@ -35,7 +34,6 @@ import { AiModule } from './ai/ai.module';
     UploadModule,
     OrdersModule,
     ScrapingModule,
-    AiModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -15,10 +15,10 @@ export type OrderStatus =
 
 @Entity('orders') // Explicitly name the table 'orders'
 export class Order extends BaseEntity {
-  @ManyToOne(() => User, (user) => user.purchases, { eager: true, onDelete: 'SET NULL', nullable: true })
+  @ManyToOne(() => User, (user) => user.purchases, { eager: true })
   buyer: User;
 
-  @ManyToOne(() => User, (user) => user.sales, { eager: true, onDelete: 'SET NULL', nullable: true })
+  @ManyToOne(() => User, (user) => user.sales, { eager: true })
   seller: User;
 
   @OneToMany(() => OrderItem, (item) => item.order, { cascade: true, eager: true })
@@ -54,7 +54,4 @@ export class Order extends BaseEntity {
 
   @Column({ nullable: true })
   trackingNumber?: string;
-  
-  @Column({ nullable: true })
-  transactionHash?: string;
 }

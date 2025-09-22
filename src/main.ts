@@ -22,18 +22,15 @@ async function bootstrap() {
     allowedOrigins.push(frontendUrl);
   }
   
-  app.enableCors({
-    origin: (origin, callback) => {
-      // allow requests with no origin (like mobile apps or curl requests)
-      if (!origin || allowedOrigins.indexOf(origin) !== -1) {
-        callback(null, true);
-      } else {
-        callback(new Error('Not allowed by CORS'));
-      }
-    },
-  });
-  console.log(`CORS enabled for origins: ${allowedOrigins.join(', ')}`);
-
+  if (frontendUrl) {
+    app.enableCors({
+      origin: allowedOrigins,
+    });
+    console.log(`CORS enabled for origins: ${allowedOrigins.join(', ')}`);
+  } else {
+    app.enableCors(); // Fallback for local development
+    console.log('CORS enabled for all origins (development mode)');
+  }
 
   // FIX: `configService` is now correctly typed, so this generic call is valid.
   const port = configService.get<number>('PORT') || 3001;

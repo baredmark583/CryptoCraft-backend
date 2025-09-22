@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException, InternalServerErrorException } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { UsersService } from '../users/users.service';
 import { JwtService } from '@nestjs/jwt';
 import * as crypto from 'crypto';
@@ -8,18 +8,11 @@ import { User } from 'src/users/entities/user.entity';
 
 @Injectable()
 export class AuthService {
-  private readonly botToken: string;
-
   constructor(
     private usersService: UsersService,
     private jwtService: JwtService,
     private configService: ConfigService,
-  ) {
-    this.botToken = this.configService.get<string>('TELEGRAM_BOT_TOKEN');
-    if (!this.botToken) {
-      throw new InternalServerErrorException('TELEGRAM_BOT_TOKEN is not configured in environment variables. Server cannot validate Telegram users.');
-    }
-  }
+  ) {}
 
   async validateTelegramData(initData: string): Promise<User> {
     const data = new URLSearchParams(initData);
@@ -36,7 +29,7 @@ export class AuthService {
     
     const secret = crypto
       .createHmac('sha256', 'WebAppData')
-      .update(this.botToken)
+      .update(this.configService.get<string>('TELEGRAM_BOT_TOKEN'))
       .digest();
       
     const hmac = crypto

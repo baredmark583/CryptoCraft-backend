@@ -22,7 +22,7 @@ export class OrdersService {
   ) {}
 
   async create(createOrderDto: CreateOrderDto, buyerId: string): Promise<{ success: boolean }> {
-    const { cartItems, shippingAddress, shippingMethod, paymentMethod, transactionHash } = createOrderDto;
+    const { cartItems, shippingAddress, shippingMethod, paymentMethod } = createOrderDto;
 
     const buyer = await this.userRepository.findOneBy({ id: buyerId });
     if (!buyer) {
@@ -56,7 +56,6 @@ export class OrdersService {
         shippingAddress,
         shippingMethod,
         paymentMethod,
-        transactionHash, // Save the transaction hash
         orderDate: Date.now(),
         items: [],
         total: 0,
