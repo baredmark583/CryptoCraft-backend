@@ -25,7 +25,7 @@ import { AiModule } from './ai/ai.module';
         url: configService.get<string>('DATABASE_URL'),
         autoLoadEntities: true,
         synchronize: true, // DEV only: automatically creates DB schema.
-        dropSchema: true, // DEV only: drops schema on every app start. Good for fixing sync errors.
+        dropSchema: false, // Set to false to persist data between restarts.
         logging: true,
       }),
     }),
