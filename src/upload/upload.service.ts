@@ -1,16 +1,15 @@
-
-
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { v2 as cloudinary } from 'cloudinary';
 import { Readable } from 'stream';
 import axios from 'axios';
 // FIX: Explicitly import Buffer to resolve TypeScript 'Cannot find name' error.
 import { Buffer } from 'buffer';
+// FIX: Import multer types to make Express.Multer.File available.
+import 'multer';
 
 @Injectable()
 export class UploadService {
-  // Fix: Changed Express.Multer.File to any to resolve missing type definition errors.
-  async uploadFile(file: any): Promise<{ url: string }> {
+  async uploadFile(file: Express.Multer.File): Promise<{ url: string }> {
     if (!file) {
       throw new BadRequestException('Make sure that the file is uploaded');
     }
