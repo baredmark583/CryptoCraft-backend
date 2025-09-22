@@ -50,7 +50,10 @@ export class ProductsService {
     if (!product) {
       throw new NotFoundException(`Product with ID "${id}" not found`);
     }
-    return this.productsRepository.save(product);
+    await this.productsRepository.save(product);
+    // After saving, reload the entity with its relations to ensure the response is complete.
+    // This fixes the bug where eager relations (like 'seller') were missing in the response.
+    return this.findOne(id);
   }
 
   async remove(id: string): Promise<void> {
