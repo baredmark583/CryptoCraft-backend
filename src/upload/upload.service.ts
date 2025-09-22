@@ -4,7 +4,7 @@ import { Readable } from 'stream';
 import axios from 'axios';
 // FIX: Explicitly import Buffer to resolve TypeScript 'Cannot find name' error.
 import { Buffer } from 'buffer';
-// FIX: Import multer types to make Express.Multer.File available.
+// FIX: Import 'multer' to provide type definitions for Express.Multer.File.
 import 'multer';
 
 @Injectable()

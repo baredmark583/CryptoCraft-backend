@@ -19,7 +19,15 @@ export class User {
   @PrimaryGeneratedColumn('uuid')
   id: string;
   
-  @Column({ unique: true, nullable: true })
+  @Column({
+    type: 'bigint',
+    unique: true,
+    nullable: true,
+    transformer: {
+      from: (val: string | null) => (val ? parseInt(val, 10) : null),
+      to: (val: number | null) => val,
+    },
+  })
   telegramId?: number;
 
   @Column()
