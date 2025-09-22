@@ -9,6 +9,7 @@ import { AuthModule } from './auth/auth.module';
 import { UploadModule } from './upload/upload.module';
 import { OrdersModule } from './orders/orders.module';
 import { ScrapingModule } from './scraping/scraping.module';
+import { AiModule } from './ai/ai.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { ScrapingModule } from './scraping/scraping.module';
     UploadModule,
     OrdersModule,
     ScrapingModule,
+    AiModule,
   ],
   controllers: [AppController],
   providers: [AppService],
