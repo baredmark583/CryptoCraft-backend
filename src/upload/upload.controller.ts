@@ -1,4 +1,5 @@
-// FIX: Import multer to provide type definitions for Express.Multer.File.
+// FIX: Use a type-only import for Express to make global namespace available for Multer.
+import type { Request } from 'express';
 import 'multer';
 import { Controller, Post, UseInterceptors, UploadedFile, UseGuards, Body } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
