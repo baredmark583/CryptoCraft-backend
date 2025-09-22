@@ -1,5 +1,5 @@
-// FIX: Use a type-only import for Express to make global namespace available for Multer.
-import type { Request } from 'express';
+// FIX: Import `Express` to make the global namespace available for Multer's types.
+import { Express } from 'express';
 import 'multer';
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { v2 as cloudinary } from 'cloudinary';
