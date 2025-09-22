@@ -1,6 +1,7 @@
 import { Entity, Column, OneToMany, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn } from 'typeorm';
 import { Product } from '../../products/entities/product.entity';
 import { Order } from '../../orders/entities/order.entity';
+import { DecimalTransformer } from '../../database/base.entity';
 
 // Define jsonb types directly here as they are simple
 export interface ShippingAddress {
@@ -39,16 +40,31 @@ export class User {
   @Column({ nullable: true })
   headerImageUrl?: string;
   
-  @Column('decimal', { precision: 2, scale: 1, default: 0 })
+  @Column('decimal', {
+    precision: 2,
+    scale: 1,
+    default: 0,
+    transformer: new DecimalTransformer(),
+  })
   rating: number;
   
   @Column('simple-array', { default: '' })
   following: string[];
   
-  @Column('decimal', { precision: 10, scale: 2, default: 0 })
+  @Column('decimal', {
+    precision: 10,
+    scale: 2,
+    default: 0,
+    transformer: new DecimalTransformer(),
+  })
   balance: number;
 
-  @Column('decimal', { precision: 10, scale: 2, default: 0 })
+  @Column('decimal', {
+    precision: 10,
+    scale: 2,
+    default: 0,
+    transformer: new DecimalTransformer(),
+  })
   commissionOwed: number;
   
   @Column({
