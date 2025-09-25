@@ -1,5 +1,5 @@
 import { IsString, IsNotEmpty, IsOptional, IsNumber, IsUrl, IsArray, IsObject, IsEnum, IsBoolean, IsUUID } from 'class-validator';
-import { AuthenticationStatus, ProductVariant, VariantAttribute } from '../entities/product.entity';
+import { AuthenticationStatus, ModerationStatus, ProductVariant, VariantAttribute } from '../entities/product.entity';
 
 export class CreateProductDto {
   @IsString()
@@ -124,5 +124,9 @@ export class CreateProductDto {
   @IsEnum(['NONE', 'PENDING', 'AUTHENTICATED', 'REJECTED'])
   @IsOptional()
   authenticationStatus?: AuthenticationStatus;
+  
+  @IsEnum(['Pending Moderation', 'Active', 'Rejected'])
+  @IsOptional()
+  status?: ModerationStatus;
 
 }

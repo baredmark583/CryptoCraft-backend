@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, IsOptional, IsNumber, IsUrl, IsArray, IsObject, IsEnum } from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsNumber, IsUrl, IsArray, IsObject, IsEnum, IsEmail } from 'class-validator';
 import { ShippingAddress, BusinessInfo } from '../entities/user.entity';
 
 export class CreateUserDto {
@@ -9,6 +9,10 @@ export class CreateUserDto {
   @IsString()
   @IsNotEmpty()
   name: string;
+  
+  @IsEmail()
+  @IsOptional()
+  email?: string;
 
   @IsUrl()
   @IsOptional()

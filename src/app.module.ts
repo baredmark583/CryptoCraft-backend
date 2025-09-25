@@ -10,6 +10,8 @@ import { UploadModule } from './upload/upload.module';
 import { OrdersModule } from './orders/orders.module';
 import { ScrapingModule } from './scraping/scraping.module';
 import { AiModule } from './ai/ai.module';
+import { CategoriesModule } from './categories/categories.module';
+import { IconsModule } from './icons/icons.module';
 
 @Module({
   imports: [
@@ -36,6 +38,8 @@ import { AiModule } from './ai/ai.module';
     OrdersModule,
     ScrapingModule,
     AiModule,
+    CategoriesModule,
+    IconsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

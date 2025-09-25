@@ -22,6 +22,9 @@ export type AuthenticationStatus =
   | 'PENDING'
   | 'AUTHENTICATED'
   | 'REJECTED';
+  
+export type ModerationStatus = 'Pending Moderation' | 'Active' | 'Rejected';
+
 
 @Entity()
 export class Product extends BaseEntity {
@@ -194,4 +197,15 @@ export class Product extends BaseEntity {
   
   @OneToMany(() => OrderItem, (orderItem) => orderItem.product)
   orderItems: OrderItem[];
+  
+  // Moderation
+  @Column({
+    type: 'enum',
+    enum: ['Pending Moderation', 'Active', 'Rejected'],
+    default: 'Pending Moderation',
+  })
+  status: ModerationStatus;
+
+  @Column('text', { nullable: true })
+  rejectionReason?: string;
 }
