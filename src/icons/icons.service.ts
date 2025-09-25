@@ -46,6 +46,31 @@ export class IconsService {
     return this.iconRepository.save(icon);
   }
 
+  async upsert(upsertIconDto: CreateIconDto) {
+    const { name, iconUrl, svgContent } = upsertIconDto;
+
+    if (!iconUrl && !svgContent) {
+        throw new BadRequestException('Either svgContent or iconUrl must be provided.');
+    }
+
+    const iconData: Partial<Icon> = { name };
+    if (iconUrl) {
+        iconData.svgContent = await this.fetchSvgFromUrl(iconUrl);
+    } else if (svgContent) {
+        iconData.svgContent = svgContent;
+    }
+
+    const existingIcon = await this.iconRepository.findOne({ where: { name } });
+    
+    if (existingIcon) {
+      await this.iconRepository.update(existingIcon.id, { svgContent: iconData.svgContent });
+      return this.findOne(existingIcon.id);
+    } else {
+      const newIcon = this.iconRepository.create(iconData);
+      return this.iconRepository.save(newIcon);
+    }
+  }
+
   findAll() {
     return this.iconRepository.find({ order: { name: 'ASC' } });
   }

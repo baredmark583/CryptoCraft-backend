@@ -20,6 +20,12 @@ export class IconsController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Patch('upsert')
+  upsert(@Body() upsertIconDto: CreateIconDto) {
+    return this.iconsService.upsert(upsertIconDto);
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Get()
   findAll() {
     return this.iconsService.findAll();

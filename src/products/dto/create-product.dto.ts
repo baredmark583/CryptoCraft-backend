@@ -129,4 +129,8 @@ export class CreateProductDto {
   @IsOptional()
   status?: ModerationStatus;
 
+  // FIX: Add rejectionReason property to allow admin to provide a reason for rejecting a product.
+  @IsString()
+  @IsOptional()
+  rejectionReason?: string;
 }
