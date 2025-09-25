@@ -10,14 +10,27 @@ async function bootstrap() {
   const frontendUrl = configService.get<string>('FRONTEND_URL');
   const adminUrl = configService.get<string>('ADMIN_URL');
 
-  const whitelist = [frontendUrl, adminUrl].filter(Boolean); // Фильтруем пустые значения
+  // Whitelist of allowed origins for CORS.
+  // Includes known deployment URLs and local development URLs from environment variables.
+  const whitelist = new Set([
+    'https://cryptocraft-frontend.onrender.com', // Production Frontend
+    'https://administrator-wusk.onrender.com', // Production Admin
+  ]);
+
+  // Add URLs from environment variables if they exist
+  if (frontendUrl) whitelist.add(frontendUrl);
+  if (adminUrl) whitelist.add(adminUrl);
+
 
   app.enableCors({
     origin: (origin, callback) => {
-      // Разрешаем запросы без origin (например, от мобильных приложений или Postman) или если origin в белом списке
-      if (!origin || whitelist.indexOf(origin) !== -1) {
+      // Allow requests with no origin (like mobile apps or curl requests)
+      // and requests from whitelisted origins.
+      if (!origin || whitelist.has(origin)) {
         callback(null, true);
       } else {
+        // For debugging, log the rejected origin
+        console.warn(`CORS: Rejected origin: ${origin}. Allowed origins are: ${[...whitelist].join(', ')}`);
         callback(new Error('Not allowed by CORS'));
       }
     },

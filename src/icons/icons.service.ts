@@ -84,14 +84,19 @@ export class IconsService {
   }
 
   async update(id: string, updateIconDto: UpdateIconDto) {
-    // FIX: Explicitly handle iconUrl property which exists on the DTO but not the entity.
-    const { iconUrl, ...restDto } = updateIconDto;
+    // FIX: The original destructuring caused a type error. This implementation safely
+    // handles the properties from the DTO to build the update payload.
+    const iconData: Partial<Icon> = {};
 
-    // FIX: Define iconData with an explicit type to allow adding svgContent property.
-    const iconData: Partial<Icon> = { ...restDto };
+    if (updateIconDto.name) {
+        iconData.name = updateIconDto.name;
+    }
 
-    if (iconUrl) {
-        iconData.svgContent = await this.fetchSvgFromUrl(iconUrl);
+    // `iconUrl` takes precedence over `svgContent` if both are provided.
+    if (updateIconDto.iconUrl) {
+        iconData.svgContent = await this.fetchSvgFromUrl(updateIconDto.iconUrl);
+    } else if (updateIconDto.svgContent) {
+        iconData.svgContent = updateIconDto.svgContent;
     }
 
     const icon = await this.iconRepository.preload({ id, ...iconData });
