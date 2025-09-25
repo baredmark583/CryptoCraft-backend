@@ -87,6 +87,13 @@ export class OrdersService {
     
     return { success: true };
   }
+  
+  findAll(): Promise<Order[]> {
+    return this.orderRepository.find({
+        order: { createdAt: 'DESC' },
+        relations: ['buyer', 'seller', 'items', 'items.product'] // Ensure all relations are loaded
+    });
+  }
 
   findPurchases(userId: string): Promise<Order[]> {
     return this.orderRepository.find({

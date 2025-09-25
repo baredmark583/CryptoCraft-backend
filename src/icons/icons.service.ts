@@ -84,22 +84,22 @@ export class IconsService {
   }
 
   async update(id: string, updateIconDto: UpdateIconDto) {
-    // FIX: The original destructuring caused a type error. This implementation safely
-    // handles the properties from the DTO to build the update payload.
-    const iconData: Partial<Icon> = {};
+    // FIX: Destructuring the DTO properties first resolves the TypeScript errors where properties were not being found on the type.
+    const { name, iconUrl, svgContent } = updateIconDto;
+    const updatePayload: Partial<Icon> = {};
 
-    if (updateIconDto.name) {
-        iconData.name = updateIconDto.name;
+    if (name) {
+      updatePayload.name = name;
     }
 
     // `iconUrl` takes precedence over `svgContent` if both are provided.
-    if (updateIconDto.iconUrl) {
-        iconData.svgContent = await this.fetchSvgFromUrl(updateIconDto.iconUrl);
-    } else if (updateIconDto.svgContent) {
-        iconData.svgContent = updateIconDto.svgContent;
+    if (iconUrl) {
+      updatePayload.svgContent = await this.fetchSvgFromUrl(iconUrl);
+    } else if (svgContent) {
+      updatePayload.svgContent = svgContent;
     }
 
-    const icon = await this.iconRepository.preload({ id, ...iconData });
+    const icon = await this.iconRepository.preload({ id, ...updatePayload });
     if (!icon) {
       throw new NotFoundException(`Icon with ID ${id} not found`);
     }

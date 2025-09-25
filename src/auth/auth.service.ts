@@ -5,6 +5,7 @@ import * as crypto from 'crypto';
 import { ConfigService } from '@nestjs/config';
 import { TelegramUser } from './strategies/telegram.strategy';
 import { User } from 'src/users/entities/user.entity';
+import { AdminLoginDto } from './dto/admin-login.dto';
 
 @Injectable()
 export class AuthService {
@@ -52,8 +53,19 @@ export class AuthService {
     return this.usersService.findByTelegramIdOrCreate(user);
   }
 
-  async login(user: User) {
-    const payload = { sub: user.id, username: user.name };
+  async validateAdmin(adminLoginDto: AdminLoginDto): Promise<Partial<User & { role: string }>> {
+    const adminEmail = this.configService.get<string>('ADMIN_EMAIL', 'admin');
+    const adminPass = this.configService.get<string>('ADMIN_PASSWORD', 'admin');
+
+    if (adminLoginDto.email === adminEmail && adminLoginDto.password === adminPass) {
+      // For admin, we create a user-like object for the JWT payload
+      return { id: 'admin-user', name: 'Administrator', role: 'admin' };
+    }
+    throw new UnauthorizedException('Invalid admin credentials');
+  }
+
+  async login(user: Partial<User & { role?: string }>) {
+    const payload = { sub: user.id, username: user.name, role: user.role || 'user' };
     return {
       access_token: this.jwtService.sign(payload),
       user: user, // Возвращаем данные пользователя на фронтенд

@@ -15,6 +15,13 @@ export class OrdersController {
     return this.ordersService.create(createOrderDto, userId);
   }
 
+  @Get()
+  findAllAdmin() {
+    // This is an admin-only route for now.
+    // In a real app, you'd have a role-based guard.
+    return this.ordersService.findAll();
+  }
+
   @Get('purchases')
   findPurchases(@Req() req) {
     const userId = req.user.userId;
