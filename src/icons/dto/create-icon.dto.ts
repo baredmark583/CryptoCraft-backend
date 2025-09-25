@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsString } from 'class-validator';
+import { IsNotEmpty, IsString, IsOptional, IsUrl } from 'class-validator';
 
 export class CreateIconDto {
   @IsString()
@@ -6,6 +6,10 @@ export class CreateIconDto {
   name: string;
 
   @IsString()
-  @IsNotEmpty()
-  svgContent: string;
+  @IsOptional()
+  svgContent?: string;
+
+  @IsUrl()
+  @IsOptional()
+  iconUrl?: string;
 }

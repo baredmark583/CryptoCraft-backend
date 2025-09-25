@@ -30,16 +30,20 @@ export class CategoriesService {
   }
 
   async update(id: string, updateCategoryDto: UpdateCategoryDto) {
+    // FIX: Create a mutable copy of the DTO with an explicit type to handle fields safely.
+    // This also helps TypeScript resolve the type of the 'fields' property.
+    const updatePayload: Partial<Category> = { ...updateCategoryDto };
+
     // We need to clean up the fields array, removing temporary IDs
-    if (updateCategoryDto.fields) {
-      updateCategoryDto.fields.forEach(field => {
+    if (updatePayload.fields) {
+      updatePayload.fields.forEach(field => {
         if (field.id.startsWith('new_')) {
           delete (field as any).id;
         }
       });
     }
 
-    const category = await this.categoryRepository.preload({ id, ...updateCategoryDto });
+    const category = await this.categoryRepository.preload({ id, ...updatePayload });
     if (!category) {
       throw new NotFoundException(`Category with ID ${id} not found`);
     }

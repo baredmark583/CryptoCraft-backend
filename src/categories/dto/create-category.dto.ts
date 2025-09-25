@@ -1,5 +1,6 @@
 import { Type } from 'class-transformer';
-import { IsArray, IsNotEmpty, IsOptional, IsString, ValidateNested } from 'class-validator';
+// FIX: Import `IsBoolean` decorator for validation.
+import { IsArray, IsBoolean, IsNotEmpty, IsOptional, IsString, ValidateNested } from 'class-validator';
 
 // FIX: Export the DTO class to make it accessible to other modules, particularly for `UpdateCategoryDto`.
 export class CategoryFieldDto {
@@ -19,6 +20,8 @@ export class CategoryFieldDto {
     @IsArray()
     options: string[];
     
+    // FIX: Add `@IsBoolean` decorator to ensure the property is correctly handled by the validation pipe.
+    @IsBoolean()
     required: boolean;
 }
 

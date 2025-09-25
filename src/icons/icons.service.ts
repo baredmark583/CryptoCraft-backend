@@ -1,9 +1,10 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CreateIconDto } from './dto/create-icon.dto';
 import { UpdateIconDto } from './dto/update-icon.dto';
 import { Icon } from './entities/icon.entity';
+import axios from 'axios';
 
 @Injectable()
 export class IconsService {
@@ -11,9 +12,37 @@ export class IconsService {
     @InjectRepository(Icon)
     private readonly iconRepository: Repository<Icon>,
   ) {}
+
+  private async fetchSvgFromUrl(url: string): Promise<string> {
+    try {
+        const response = await axios.get(url, {
+            headers: { 'Accept': 'image/svg+xml' },
+            timeout: 5000,
+        });
+        if (typeof response.data !== 'string' || !response.data.trim().startsWith('<svg')) {
+            throw new Error('Response is not a valid SVG file.');
+        }
+        return response.data;
+    } catch (error) {
+        console.error(`Failed to fetch SVG from ${url}`, error);
+        throw new BadRequestException(`Could not fetch a valid SVG from the provided URL.`);
+    }
+  }
   
-  create(createIconDto: CreateIconDto) {
-    const icon = this.iconRepository.create(createIconDto);
+  async create(createIconDto: CreateIconDto) {
+    const { iconUrl, ...restDto } = createIconDto;
+
+    if (!iconUrl && !restDto.svgContent) {
+        throw new BadRequestException('Either svgContent or iconUrl must be provided.');
+    }
+    
+    const iconData = { ...restDto };
+
+    if (iconUrl) {
+        iconData.svgContent = await this.fetchSvgFromUrl(iconUrl);
+    }
+    
+    const icon = this.iconRepository.create(iconData);
     return this.iconRepository.save(icon);
   }
 
@@ -30,7 +59,17 @@ export class IconsService {
   }
 
   async update(id: string, updateIconDto: UpdateIconDto) {
-    const icon = await this.iconRepository.preload({ id, ...updateIconDto });
+    // FIX: Explicitly handle iconUrl property which exists on the DTO but not the entity.
+    const { iconUrl, ...restDto } = updateIconDto;
+
+    // FIX: Define iconData with an explicit type to allow adding svgContent property.
+    const iconData: Partial<Icon> = { ...restDto };
+
+    if (iconUrl) {
+        iconData.svgContent = await this.fetchSvgFromUrl(iconUrl);
+    }
+
+    const icon = await this.iconRepository.preload({ id, ...iconData });
     if (!icon) {
       throw new NotFoundException(`Icon with ID ${id} not found`);
     }
