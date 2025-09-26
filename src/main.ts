@@ -6,7 +6,8 @@ import { ConfigService } from '@nestjs/config';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  const configService = app.get(ConfigService);
+  // FIX: Explicitly type configService to resolve Untyped function call error.
+  const configService: ConfigService = app.get(ConfigService);
   const frontendUrl = configService.get<string>('FRONTEND_URL');
   const adminUrl = configService.get<string>('ADMIN_URL');
 

@@ -84,8 +84,9 @@ export class IconsService {
   }
 
   async update(id: string, updateIconDto: UpdateIconDto) {
-    // FIX: Destructuring the DTO properties first resolves the TypeScript errors where properties were not being found on the type.
+    // FIX: Destructure the DTO to handle properties conditionally. The previous implementation and comment were incorrect.
     const { name, iconUrl, svgContent } = updateIconDto;
+
     const updatePayload: Partial<Icon> = {};
 
     if (name) {
