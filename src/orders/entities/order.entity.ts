@@ -1,8 +1,9 @@
-import { Entity, Column, ManyToOne, OneToMany } from 'typeorm';
+import { Entity, Column, ManyToOne, OneToMany, OneToOne } from 'typeorm';
 import { BaseEntity, DecimalTransformer } from '../../database/base.entity';
 import { User } from '../../users/entities/user.entity';
 import { OrderItem } from './order-item.entity';
 import { ShippingAddress } from '../../users/entities/user.entity';
+import { Dispute } from '../../disputes/entities/dispute.entity';
 
 export type OrderStatus =
   | 'PENDING'
@@ -57,4 +58,7 @@ export class Order extends BaseEntity {
   
   @Column({ nullable: true })
   transactionHash?: string;
+  
+  @OneToOne(() => Dispute, (dispute) => dispute.order, { cascade: true, eager: true, nullable: true })
+  dispute?: Dispute;
 }

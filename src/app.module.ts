@@ -4,46 +4,51 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { UsersModule } from './users/users.module';
-import { ProductsModule } from './products/products.module';
 import { AuthModule } from './auth/auth.module';
-import { UploadModule } from './upload/upload.module';
+import { ProductsModule } from './products/products.module';
 import { OrdersModule } from './orders/orders.module';
-import { ScrapingModule } from './scraping/scraping.module';
 import { AiModule } from './ai/ai.module';
+import { UploadModule } from './upload/upload.module';
+import { ScrapingModule } from './scraping/scraping.module';
 import { CategoriesModule } from './categories/categories.module';
 import { IconsModule } from './icons/icons.module';
-import { DashboardModule } from './dashboard/dashboard.module';
 import { SettingsModule } from './settings/settings.module';
+import { DashboardModule } from './dashboard/dashboard.module';
+import { DisputesModule } from './disputes/disputes.module';
+import { TransactionsModule } from './transactions/transactions.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
-      isGlobal: true,
+      isGlobal: true, // Makes the ConfigService available throughout the app
       envFilePath: '.env',
     }),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
-      inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
         type: 'postgres',
-        url: configService.get<string>('DATABASE_URL'),
+        url: configService.get('DATABASE_URL'),
         autoLoadEntities: true,
-        synchronize: true, // DEV only: automatically creates DB schema.
-        dropSchema: false, // Set to false to persist data between restarts.
-        logging: true,
+        synchronize: true, // In production, consider using migrations instead
+        ssl: {
+          rejectUnauthorized: false,
+        }
       }),
+      inject: [ConfigService],
     }),
     UsersModule,
-    ProductsModule,
     AuthModule,
-    UploadModule,
+    ProductsModule,
     OrdersModule,
-    ScrapingModule,
     AiModule,
+    UploadModule,
+    ScrapingModule,
     CategoriesModule,
     IconsModule,
-    DashboardModule,
     SettingsModule,
+    DashboardModule,
+    DisputesModule,
+    TransactionsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
