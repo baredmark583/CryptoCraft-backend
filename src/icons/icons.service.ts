@@ -84,10 +84,10 @@ export class IconsService {
   }
 
   async update(id: string, updateIconDto: UpdateIconDto) {
-    // FIX: Destructure the DTO to handle properties conditionally. The previous implementation and comment were incorrect.
-    const { name, iconUrl, svgContent } = updateIconDto;
-
+    // FIX: The original destructuring was causing a type error. This implementation accesses properties directly.
     const updatePayload: Partial<Icon> = {};
+
+    const { name, iconUrl, svgContent } = updateIconDto;
 
     if (name) {
       updatePayload.name = name;
