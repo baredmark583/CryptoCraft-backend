@@ -1,15 +1,17 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
 import { Category } from './entities/category.entity';
+import { CategorySchema } from '../admin/constants';
 
 @Injectable()
 export class CategoriesService {
   constructor(
     @InjectRepository(Category)
     private readonly categoryRepository: Repository<Category>,
+    private dataSource: DataSource,
   ) {}
 
   create(createCategoryDto: CreateCategoryDto) {
@@ -82,5 +84,33 @@ export class CategoriesService {
       throw new NotFoundException(`Category with ID ${id} not found`);
     }
     return { success: true };
+  }
+
+  async batchCreate(categories: CategorySchema[]): Promise<void> {
+    await this.dataSource.transaction(async manager => {
+        // Clear all existing categories for a fresh start
+        await manager.clear(Category);
+
+        const saveCategoriesRecursive = async (
+            categoriesToSave: CategorySchema[],
+            parentId: string | null,
+        ): Promise<void> => {
+            for (const categoryData of categoriesToSave) {
+                const newCategory = manager.create(Category, {
+                    name: categoryData.name,
+                    iconUrl: categoryData.iconUrl,
+                    fields: categoryData.fields,
+                    parentId: parentId,
+                });
+                const savedCategory = await manager.save(newCategory);
+
+                if (categoryData.subcategories && categoryData.subcategories.length > 0) {
+                    await saveCategoriesRecursive(categoryData.subcategories, savedCategory.id);
+                }
+            }
+        };
+
+        await saveCategoriesRecursive(categories, null);
+    });
   }
 }

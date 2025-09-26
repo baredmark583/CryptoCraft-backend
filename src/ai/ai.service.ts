@@ -1,6 +1,7 @@
 import { Injectable, InternalServerErrorException, BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { GoogleGenAI, Type, Modality } from '@google/genai';
+import { CategoryField } from 'src/categories/entities/category.entity';
 import { getCategoryNames } from '../constants'; // Assuming constants file is accessible
 import type { SellerAnalytics, SellerDashboardData, ImportedListingData } from '../types';
 
@@ -240,6 +241,84 @@ export class AiService {
     } catch (error) {
         console.error("Error in processImportedHtml:", error);
         throw new InternalServerErrorException('Failed to process HTML with AI');
+    }
+  }
+
+  async generateCategoryStructure(description: string) {
+    const prompt = `Ты — AI-архитектор для e-commerce платформ. Твоя задача — создать полную и логичную иерархическую структуру категорий для маркетплейса на основе его описания.
+
+    **Описание маркетплейса:** "${description}"
+
+    **Требования к результату:**
+    1.  **Глубина:** Структура должна иметь до 4 уровней вложенности (категория -> подкатегория -> ...).
+    2.  **Поля (Атрибуты):** Для КАЖДОЙ категории и подкатегории сгенерируй от 2 до 5 релевантных полей (атрибутов), которые помогут продавцам детально описывать свои товары.
+    3.  **Формат полей:** Каждое поле должно иметь 'name' (техническое, snake_case), 'label' (читаемое), 'type' ('text', 'number', 'select'), и необязательные 'required' (boolean) и 'options' (массив строк для типа 'select').
+    4.  **Формат ответа:** Ответ должен быть СТРОГО в формате JSON. Это должен быть массив объектов, где каждый объект представляет категорию верхнего уровня и может содержать вложенный массив 'subcategories'.
+
+    Пример требуемой структуры для одного элемента:
+    {
+      "name": "Одежда",
+      "fields": [
+        { "name": "size", "label": "Размер", "type": "select", "options": ["XS", "S", "M", "L", "XL"], "required": true },
+        { "name": "color", "label": "Цвет", "type": "text", "required": false }
+      ],
+      "subcategories": [
+        {
+          "name": "Женская одежда",
+          "fields": [...],
+          "subcategories": [...]
+        }
+      ]
+    }
+    `;
+
+    const categoryFieldSchema = {
+        type: Type.OBJECT,
+        properties: {
+            name: { type: Type.STRING },
+            label: { type: Type.STRING },
+            type: { type: Type.STRING, enum: ['text', 'number', 'select'] },
+            required: { type: Type.BOOLEAN },
+            options: { type: Type.ARRAY, items: { type: Type.STRING } }
+        },
+        required: ["name", "label", "type"]
+    };
+    
+    const categorySchema: any = {
+      type: Type.OBJECT,
+      properties: {
+        name: { type: Type.STRING },
+        fields: {
+          type: Type.ARRAY,
+          items: categoryFieldSchema,
+        },
+        subcategories: {
+          type: Type.ARRAY,
+          items: {}, // Placeholder for recursive definition
+        },
+      },
+      required: ['name', 'fields'],
+    };
+    // Recursive definition
+    categorySchema.properties.subcategories.items = categorySchema;
+
+
+    try {
+        const response = await this.ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: { parts: [{ text: prompt }] },
+            config: {
+                responseMimeType: 'application/json',
+                responseSchema: {
+                    type: Type.ARRAY,
+                    items: categorySchema
+                }
+            }
+        });
+        return JSON.parse(response.text);
+    } catch (error) {
+        console.error("Error in generateCategoryStructure:", error);
+        throw new InternalServerErrorException('Failed to generate category structure with AI');
     }
   }
 }

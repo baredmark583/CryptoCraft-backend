@@ -7,6 +7,7 @@ import { AnalyzeDocumentDto } from './dto/analyze-document.dto';
 import { AnalyticsInsightsDto } from './dto/analytics-insights.dto';
 import { DashboardFocusDto } from './dto/dashboard-focus.dto';
 import { ProcessHtmlDto } from './dto/process-html.dto';
+import { GenerateCategoryStructureDto } from './dto/generate-category-structure.dto';
 
 @Controller('ai')
 @UseGuards(JwtAuthGuard)
@@ -48,5 +49,10 @@ export class AiController {
   @Post('process-html')
   processHtml(@Body() processHtmlDto: ProcessHtmlDto) {
       return this.aiService.processImportedHtml(processHtmlDto.html);
+  }
+
+  @Post('generate-category-structure')
+  generateCategoryStructure(@Body() generateCategoryStructureDto: GenerateCategoryStructureDto) {
+    return this.aiService.generateCategoryStructure(generateCategoryStructureDto.description);
   }
 }

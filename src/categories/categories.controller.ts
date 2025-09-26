@@ -3,6 +3,7 @@ import { CategoriesService } from './categories.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { BatchCreateCategoriesDto } from './dto/batch-create-categories.dto';
 
 @Controller('categories')
 export class CategoriesController {
@@ -12,6 +13,12 @@ export class CategoriesController {
   @Post()
   create(@Body() createCategoryDto: CreateCategoryDto) {
     return this.categoriesService.create(createCategoryDto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('batch-create')
+  batchCreate(@Body() batchCreateCategoriesDto: BatchCreateCategoriesDto) {
+    return this.categoriesService.batchCreate(batchCreateCategoriesDto.categories);
   }
 
   @Get()
