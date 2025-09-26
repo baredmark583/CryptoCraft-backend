@@ -1,4 +1,4 @@
-import { Entity, Column } from 'typeorm';
+import { Entity, Column, OneToMany, ManyToOne, JoinColumn } from 'typeorm';
 import { BaseEntity } from '../../database/base.entity';
 
 export interface CategoryField {
@@ -16,8 +16,18 @@ export class Category extends BaseEntity {
   name: string;
 
   @Column({ nullable: true })
-  iconId: string;
+  iconUrl: string;
 
   @Column('jsonb', { default: [] })
   fields: CategoryField[];
+
+  @Column({ type: 'uuid', nullable: true })
+  parentId: string;
+
+  @ManyToOne(() => Category, category => category.subcategories, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'parentId' })
+  parent: Category;
+
+  @OneToMany(() => Category, category => category.parent)
+  subcategories: Category[];
 }

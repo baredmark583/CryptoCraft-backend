@@ -69,6 +69,9 @@ export class Product extends BaseEntity {
   @Column('jsonb', { default: {} })
   dynamicAttributes: Record<string, string | number>;
 
+  @Column({ type: 'int', default: 1 })
+  stock: number;
+
   @Column('jsonb', { nullable: true })
   variants?: ProductVariant[];
 
