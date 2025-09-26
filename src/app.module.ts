@@ -12,6 +12,8 @@ import { ScrapingModule } from './scraping/scraping.module';
 import { AiModule } from './ai/ai.module';
 import { CategoriesModule } from './categories/categories.module';
 import { IconsModule } from './icons/icons.module';
+import { DashboardModule } from './dashboard/dashboard.module';
+import { SettingsModule } from './settings/settings.module';
 
 @Module({
   imports: [
@@ -40,6 +42,8 @@ import { IconsModule } from './icons/icons.module';
     AiModule,
     CategoriesModule,
     IconsModule,
+    DashboardModule,
+    SettingsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

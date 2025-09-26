@@ -84,10 +84,11 @@ export class IconsService {
   }
 
   async update(id: string, updateIconDto: UpdateIconDto) {
-    // FIX: The destructuring was causing a type error. This implementation now accesses properties directly from the DTO.
-    const updatePayload: Partial<Icon> = {};
+    // FIX: Destructuring with a type assertion to safely access properties
+    // from the DTO, as TypeScript was failing to infer them from PartialType.
+    const { name, iconUrl, svgContent } = updateIconDto as Partial<CreateIconDto>;
 
-    const { name, iconUrl, svgContent } = updateIconDto;
+    const updatePayload: Partial<Icon> = {};
 
     if (name) {
       updatePayload.name = name;
