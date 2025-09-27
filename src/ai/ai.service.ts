@@ -275,32 +275,62 @@ export class AiService {
     const categoryFieldSchema = {
         type: Type.OBJECT,
         properties: {
-            name: { type: Type.STRING },
-            label: { type: Type.STRING },
+            name: { type: Type.STRING, description: "Техническое имя поля, в snake_case, например 'main_material'" },
+            label: { type: Type.STRING, description: "Отображаемое имя поля, например 'Основной материал'" },
             type: { type: Type.STRING, enum: ['text', 'number', 'select'] },
-            required: { type: Type.BOOLEAN },
-            options: { type: Type.ARRAY, items: { type: Type.STRING } }
+            required: { type: Type.BOOLEAN, description: "Является ли поле обязательным" },
+            options: { 
+                type: Type.ARRAY, 
+                items: { type: Type.STRING },
+                description: "Массив опций для полей типа 'select'"
+            }
         },
         required: ["name", "label", "type"]
     };
     
-    const categorySchema: any = {
-      type: Type.OBJECT,
-      properties: {
-        name: { type: Type.STRING },
-        fields: {
-          type: Type.ARRAY,
-          items: categoryFieldSchema,
+    // Manually unfold the recursive schema to a fixed depth to avoid API errors
+    // Level 4 (Innermost, no subcategories)
+    const categorySchemaLevel4 = {
+        type: Type.OBJECT,
+        properties: {
+            name: { type: Type.STRING },
+            fields: { type: Type.ARRAY, items: categoryFieldSchema },
         },
-        subcategories: {
-          type: Type.ARRAY,
-          items: {}, // Placeholder for recursive definition
-        },
-      },
-      required: ['name', 'fields'],
+        required: ['name', 'fields'],
     };
-    // Recursive definition
-    categorySchema.properties.subcategories.items = categorySchema;
+
+    // Level 3
+    const categorySchemaLevel3 = {
+        type: Type.OBJECT,
+        properties: {
+            name: { type: Type.STRING },
+            fields: { type: Type.ARRAY, items: categoryFieldSchema },
+            subcategories: { type: Type.ARRAY, items: categorySchemaLevel4 },
+        },
+        required: ['name', 'fields'],
+    };
+
+    // Level 2
+    const categorySchemaLevel2 = {
+        type: Type.OBJECT,
+        properties: {
+            name: { type: Type.STRING },
+            fields: { type: Type.ARRAY, items: categoryFieldSchema },
+            subcategories: { type: Type.ARRAY, items: categorySchemaLevel3 },
+        },
+        required: ['name', 'fields'],
+    };
+    
+    // Level 1 (Root)
+    const categorySchemaLevel1 = {
+        type: Type.OBJECT,
+        properties: {
+            name: { type: Type.STRING },
+            fields: { type: Type.ARRAY, items: categoryFieldSchema },
+            subcategories: { type: Type.ARRAY, items: categorySchemaLevel2 },
+        },
+        required: ['name', 'fields'],
+    };
 
 
     try {
@@ -311,7 +341,7 @@ export class AiService {
                 responseMimeType: 'application/json',
                 responseSchema: {
                     type: Type.ARRAY,
-                    items: categorySchema
+                    items: categorySchemaLevel1
                 }
             }
         });
