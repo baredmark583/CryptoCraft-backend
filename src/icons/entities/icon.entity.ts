@@ -8,4 +8,10 @@ export class Icon extends BaseEntity {
 
   @Column('text')
   svgContent: string;
+
+  @Column({ type: 'int', default: 24 })
+  width: number;
+
+  @Column({ type: 'int', default: 24 })
+  height: number;
 }

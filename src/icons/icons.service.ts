@@ -47,13 +47,13 @@ export class IconsService {
   }
 
   async upsert(upsertIconDto: CreateIconDto) {
-    const { name, iconUrl, svgContent } = upsertIconDto;
+    const { name, iconUrl, svgContent, width, height } = upsertIconDto;
 
     if (!iconUrl && !svgContent) {
         throw new BadRequestException('Either svgContent or iconUrl must be provided.');
     }
 
-    const iconData: Partial<Icon> = { name };
+    const iconData: Partial<Icon> = { name, width, height };
     if (iconUrl) {
         iconData.svgContent = await this.fetchSvgFromUrl(iconUrl);
     } else if (svgContent) {
@@ -63,7 +63,7 @@ export class IconsService {
     const existingIcon = await this.iconRepository.findOne({ where: { name } });
     
     if (existingIcon) {
-      await this.iconRepository.update(existingIcon.id, { svgContent: iconData.svgContent });
+      await this.iconRepository.update(existingIcon.id, { svgContent: iconData.svgContent, width: iconData.width, height: iconData.height });
       return this.findOne(existingIcon.id);
     } else {
       const newIcon = this.iconRepository.create(iconData);
@@ -86,13 +86,9 @@ export class IconsService {
   async update(id: string, updateIconDto: UpdateIconDto) {
     // FIX: Destructuring with a type assertion to safely access properties
     // from the DTO, as TypeScript was failing to infer them from PartialType.
-    const { name, iconUrl, svgContent } = updateIconDto as Partial<CreateIconDto>;
+    const { name, iconUrl, svgContent, width, height } = updateIconDto as Partial<CreateIconDto>;
 
-    const updatePayload: Partial<Icon> = {};
-
-    if (name) {
-      updatePayload.name = name;
-    }
+    const updatePayload: Partial<Icon> = { name, width, height };
 
     // `iconUrl` takes precedence over `svgContent` if both are provided.
     if (iconUrl) {

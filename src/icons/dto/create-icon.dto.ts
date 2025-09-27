@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsString, IsOptional, IsUrl } from 'class-validator';
+import { IsNotEmpty, IsString, IsOptional, IsUrl, IsNumber, Min, Max } from 'class-validator';
 
 export class CreateIconDto {
   @IsString()
@@ -12,4 +12,16 @@ export class CreateIconDto {
   @IsUrl()
   @IsOptional()
   iconUrl?: string;
+
+  @IsNumber()
+  @IsOptional()
+  @Min(1)
+  @Max(512)
+  width?: number;
+
+  @IsNumber()
+  @IsOptional()
+  @Min(1)
+  @Max(512)
+  height?: number;
 }
