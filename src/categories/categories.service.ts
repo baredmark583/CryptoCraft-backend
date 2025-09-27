@@ -113,4 +113,38 @@ export class CategoriesService {
         await saveCategoriesRecursive(categories, null);
     });
   }
+  
+  async batchCreateSubcategories(categories: CategorySchema[], parentId: string): Promise<void> {
+    const parentCategory = await this.categoryRepository.findOneBy({ id: parentId });
+    if (!parentCategory) {
+        throw new NotFoundException(`Parent category with ID ${parentId} not found.`);
+    }
+
+    await this.dataSource.transaction(async manager => {
+        const saveCategoriesRecursive = async (
+            categoriesToSave: CategorySchema[],
+            currentParentId: string | null,
+        ): Promise<void> => {
+            for (const categoryData of categoriesToSave) {
+                const newCategory = manager.create(Category, {
+                    name: categoryData.name,
+                    iconUrl: categoryData.iconUrl,
+                    fields: categoryData.fields,
+                    parentId: currentParentId,
+                });
+                const savedCategory = await manager.save(newCategory);
+
+                if (categoryData.subcategories && categoryData.subcategories.length > 0) {
+                    await saveCategoriesRecursive(categoryData.subcategories, savedCategory.id);
+                }
+            }
+        };
+
+        // Clear existing subcategories before adding new ones
+        await manager.delete(Category, { parentId });
+
+        // Start recursion with the provided parentId
+        await saveCategoriesRecursive(categories, parentId);
+    });
+  }
 }

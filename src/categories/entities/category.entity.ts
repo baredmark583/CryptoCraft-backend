@@ -2,12 +2,12 @@ import { Entity, Column, OneToMany, ManyToOne, JoinColumn } from 'typeorm';
 import { BaseEntity } from '../../database/base.entity';
 
 export interface CategoryField {
-  id: string;
+  id?: string;
   name: string;
   label: string;
   type: 'text' | 'number' | 'select';
-  required: boolean;
-  options: string[];
+  required?: boolean;
+  options?: string[];
 }
 
 @Entity('categories')

@@ -8,6 +8,7 @@ import { AnalyticsInsightsDto } from './dto/analytics-insights.dto';
 import { DashboardFocusDto } from './dto/dashboard-focus.dto';
 import { ProcessHtmlDto } from './dto/process-html.dto';
 import { GenerateCategoryStructureDto } from './dto/generate-category-structure.dto';
+import { GenerateSubcategoriesDto } from './dto/generate-subcategories.dto';
 
 @Controller('ai')
 @UseGuards(JwtAuthGuard)
@@ -54,5 +55,13 @@ export class AiController {
   @Post('generate-category-structure')
   generateCategoryStructure(@Body() generateCategoryStructureDto: GenerateCategoryStructureDto) {
     return this.aiService.generateCategoryStructure(generateCategoryStructureDto.description);
+  }
+
+  @Post('generate-and-save-subcategories')
+  generateAndSaveSubcategories(@Body() generateSubcategoriesDto: GenerateSubcategoriesDto) {
+    return this.aiService.generateAndSaveSubcategories(
+      generateSubcategoriesDto.parentId,
+      generateSubcategoriesDto.parentName,
+    );
   }
 }

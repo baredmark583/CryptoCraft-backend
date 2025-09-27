@@ -1,7 +1,7 @@
 import { Injectable, InternalServerErrorException, BadRequestException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { GoogleGenAI, Type, Modality } from '@google/genai';
-import { CategoryField } from 'src/categories/entities/category.entity';
+import { CategoriesService } from '../categories/categories.service';
 import { getCategoryNames } from '../constants'; // Assuming constants file is accessible
 import type { SellerAnalytics, SellerDashboardData, ImportedListingData } from '../types';
 
@@ -9,7 +9,10 @@ import type { SellerAnalytics, SellerDashboardData, ImportedListingData } from '
 export class AiService {
   private readonly ai: GoogleGenAI;
 
-  constructor(private configService: ConfigService) {
+  constructor(
+    private configService: ConfigService,
+    private categoriesService: CategoriesService,
+    ) {
     const apiKey = this.configService.get<string>('API_KEY');
     if (!apiKey) {
       throw new InternalServerErrorException('Gemini API key is not configured');
@@ -349,6 +352,84 @@ export class AiService {
     } catch (error) {
         console.error("Error in generateCategoryStructure:", error);
         throw new InternalServerErrorException('Failed to generate category structure with AI');
+    }
+  }
+
+  async generateAndSaveSubcategories(parentId: string, parentName: string) {
+    const prompt = `Ты — AI-архитектор для e-commerce платформ. Твоя задача — создать полную и логичную иерархическую структуру ПОДКАГЕГОРИЙ для заданной родительской категории.
+
+    **Родительская категория:** "${parentName}"
+
+    **Требования к результату:**
+    1.  **Глубина:** Структура должна иметь до 3 уровней вложенности (подкатегория -> под-подкатегория -> ...).
+    2.  **Поля (Атрибуты):** Для КАЖДОЙ сгенерированной подкатегории, придумай от 2 до 5 релевантных полей (атрибутов), которые помогут продавцам детально описывать свои товары.
+    3.  **Формат полей:** Каждое поле должно иметь 'name' (техническое, snake_case), 'label' (читаемое), 'type' ('text', 'number', 'select'), и необязательные 'required' (boolean) и 'options' (массив строк для типа 'select').
+    4.  **Формат ответа:** Ответ должен быть СТРОГО в формате JSON. Это должен быть массив объектов, где каждый объект представляет подкатегорию первого уровня для "${parentName}" и может содержать вложенный массив 'subcategories'.
+    
+    Не включай в ответ саму родительскую категорию "${parentName}". Только её дочерние элементы.`;
+
+    const categoryFieldSchema = {
+        type: Type.OBJECT,
+        properties: {
+            name: { type: Type.STRING, description: "Техническое имя поля, в snake_case, например 'main_material'" },
+            label: { type: Type.STRING, description: "Отображаемое имя поля, например 'Основной материал'" },
+            type: { type: Type.STRING, enum: ['text', 'number', 'select'] },
+            required: { type: Type.BOOLEAN, description: "Является ли поле обязательным" },
+            options: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Массив опций для полей типа 'select'" }
+        },
+        required: ["name", "label", "type"]
+    };
+    
+    const categorySchemaLevel3 = {
+        type: Type.OBJECT,
+        properties: {
+            name: { type: Type.STRING },
+            fields: { type: Type.ARRAY, items: categoryFieldSchema },
+        },
+        required: ['name', 'fields'],
+    };
+
+    const categorySchemaLevel2 = {
+        type: Type.OBJECT,
+        properties: {
+            name: { type: Type.STRING },
+            fields: { type: Type.ARRAY, items: categoryFieldSchema },
+            subcategories: { type: Type.ARRAY, items: categorySchemaLevel3 },
+        },
+        required: ['name', 'fields'],
+    };
+    
+    const categorySchemaLevel1 = {
+        type: Type.OBJECT,
+        properties: {
+            name: { type: Type.STRING },
+            fields: { type: Type.ARRAY, items: categoryFieldSchema },
+            subcategories: { type: Type.ARRAY, items: categorySchemaLevel2 },
+        },
+        required: ['name', 'fields'],
+    };
+
+
+    try {
+        const response = await this.ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents: { parts: [{ text: prompt }] },
+            config: {
+                responseMimeType: 'application/json',
+                responseSchema: {
+                    type: Type.ARRAY,
+                    items: categorySchemaLevel1
+                }
+            }
+        });
+        const generatedStructure = JSON.parse(response.text);
+
+        await this.categoriesService.batchCreateSubcategories(generatedStructure, parentId);
+        
+        return { success: true, message: 'Subcategories generated and saved successfully.' };
+    } catch (error) {
+        console.error("Error in generateAndSaveSubcategories:", error);
+        throw new InternalServerErrorException('Failed to generate and save subcategories with AI');
     }
   }
 }

@@ -1,5 +1,4 @@
-// FIX: Import `Express` to make the global namespace available for Multer's types.
-import { Express } from 'express';
+// FIX: Removed explicit 'Express' import. The 'Express' namespace with the 'Multer' member is made available globally by importing 'multer', which resolves the type error.
 import 'multer';
 import { Controller, Post, UseInterceptors, UploadedFile, UseGuards, Body } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
