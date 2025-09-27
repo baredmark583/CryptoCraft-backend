@@ -5,12 +5,21 @@ import { User } from './entities/user.entity';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { TelegramUser } from '../auth/strategies/telegram.strategy';
+import { Order } from '../orders/entities/order.entity';
+import { Product } from '../products/entities/product.entity';
+import { Dispute } from '../disputes/entities/dispute.entity';
 
 @Injectable()
 export class UsersService {
   constructor(
     @InjectRepository(User)
     private usersRepository: Repository<User>,
+    @InjectRepository(Order)
+    private ordersRepository: Repository<Order>,
+    @InjectRepository(Product)
+    private productsRepository: Repository<Product>,
+    @InjectRepository(Dispute)
+    private disputesRepository: Repository<Dispute>,
   ) {}
 
   create(createUserDto: CreateUserDto): Promise<User> {
@@ -55,6 +64,50 @@ export class UsersService {
       throw new NotFoundException(`User with ID "${id}" not found`);
     }
     return user;
+  }
+
+  async findOneWithDetails(id: string) {
+    const user = await this.findOne(id);
+
+    const products = await this.productsRepository.find({ 
+        where: { seller: { id } },
+        order: { createdAt: 'DESC' }
+    });
+    const sales = await this.ordersRepository.find({ 
+        where: { seller: { id } }, 
+        relations: ['buyer', 'items', 'items.product'],
+        order: { createdAt: 'DESC' } 
+    });
+    const purchases = await this.ordersRepository.find({ 
+        where: { buyer: { id } }, 
+        relations: ['seller', 'items', 'items.product'],
+        order: { createdAt: 'DESC' }
+    });
+    const disputes = await this.disputesRepository.find({
+        where: [
+            { order: { buyer: { id } } },
+            { order: { seller: { id } } },
+        ],
+        relations: ['order'],
+        order: { createdAt: 'DESC' }
+    });
+
+    const gmv = sales.reduce((sum, order) => sum + order.total, 0);
+    const totalSpent = purchases.reduce((sum, order) => sum + order.total, 0);
+    const platformCommission = gmv * 0.02; // Assuming 2% commission for now
+
+    return {
+        ...user,
+        products,
+        sales,
+        purchases,
+        disputes,
+        financials: {
+            gmv,
+            totalSpent,
+            platformCommission,
+        }
+    };
   }
 
   async update(id: string, updateUserDto: UpdateUserDto): Promise<User> {

@@ -17,6 +17,11 @@ export class UsersController {
     return this.usersService.findAll();
   }
 
+  @Get(':id/details')
+  findOneWithDetails(@Param('id', ParseUUIDPipe) id: string) {
+    return this.usersService.findOneWithDetails(id);
+  }
+
   @Get(':id')
   findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.usersService.findOne(id);
