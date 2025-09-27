@@ -1,4 +1,5 @@
-// FIX: Removed explicit 'Express' import. The 'Express' namespace with the 'Multer' member is made available globally by importing 'multer', which resolves the type error.
+// FIX: The 'Express' namespace, required for Multer types, is not available globally. This type-only import makes the namespace available to TypeScript without affecting runtime, allowing 'multer' to augment it correctly.
+import type { Express } from 'express';
 import 'multer';
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { v2 as cloudinary } from 'cloudinary';

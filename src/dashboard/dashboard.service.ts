@@ -33,7 +33,13 @@ export class DashboardService {
         const totalRevenueToday = todayOrders.reduce((sum, order) => sum + order.total, 0);
         const newOrdersToday = todayOrders.length;
 
-        const platformProfit = (await this.orderRepository.sum('total', { status: 'COMPLETED' })) * 0.02;
+        const profitResult = await this.orderRepository.createQueryBuilder("order")
+            .select("SUM(order.total)", "totalSum")
+            .where("order.status = :status", { status: 'COMPLETED' })
+            .getRawOne();
+        const totalSum = profitResult?.totalSum ? parseFloat(profitResult.totalSum) : 0;
+        const platformProfit = totalSum * 0.02;
+
 
         const productsForModeration = await this.productRepository.count({
             where: { status: 'Pending Moderation' }
@@ -71,20 +77,29 @@ export class DashboardService {
         const recentUsers = await this.userRepository.find({ order: { createdAt: 'DESC' }, take: 2 });
         const lastOrders = await this.orderRepository.find({ order: { createdAt: 'DESC' }, take: 3, relations: ['buyer'] });
 
-        const recentActivity = [
+        const rawActivities = [
             ...lastOrders.filter(o => o.buyer).map(o => ({
                 id: `order-${o.id}`,
                 type: 'new_order' as const,
                 text: `Новый заказ от ${o.buyer.name} на ${o.total.toFixed(2)} USDT`,
-                time: `${Math.floor((Date.now() - o.createdAt.getTime()) / 60000)} минут назад`
+                timestamp: o.createdAt.getTime()
             })),
             ...recentUsers.map(u => ({
                 id: `user-${u.id}`,
                 type: 'new_user' as const,
                 text: `Новый пользователь ${u.name}`,
-                time: `${Math.floor((Date.now() - u.createdAt.getTime()) / 60000)} минут назад`
+                timestamp: u.createdAt.getTime()
             }))
-        ].sort((a, b) => b.time.localeCompare(a.time)); // Simplistic sort for mock
+        ];
+        
+        const recentActivity = rawActivities
+            .sort((a, b) => b.timestamp - a.timestamp)
+            .slice(0, 5)
+            .map(activity => ({
+                ...activity,
+                time: `${Math.floor((Date.now() - activity.timestamp) / 60000)} минут назад`
+            }));
+
 
         // Top Sellers
         const topSellersData = await this.orderRepository
@@ -111,7 +126,7 @@ export class DashboardService {
                 activeDisputes,
             },
             salesData,
-            recentActivity: recentActivity.slice(0, 5),
+            recentActivity,
             topSellers: topSellersData.map(s => ({...s, totalRevenue: parseFloat(s.totalRevenue), salesCount: parseInt(s.salesCount, 10)})),
         };
     }
