@@ -72,7 +72,7 @@ export class DashboardService {
         const lastOrders = await this.orderRepository.find({ order: { createdAt: 'DESC' }, take: 3, relations: ['buyer'] });
 
         const recentActivity = [
-            ...lastOrders.map(o => ({
+            ...lastOrders.filter(o => o.buyer).map(o => ({
                 id: `order-${o.id}`,
                 type: 'new_order' as const,
                 text: `Новый заказ от ${o.buyer.name} на ${o.total.toFixed(2)} USDT`,
