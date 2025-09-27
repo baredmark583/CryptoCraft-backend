@@ -88,14 +88,14 @@ export class DashboardService {
 
         // Top Sellers
         const topSellersData = await this.orderRepository
-            .createQueryBuilder("order")
-            .select("order.seller.id", "id")
-            .addSelect("order.seller.name", "name")
-            .addSelect("order.seller.avatarUrl", "avatarUrl")
-            .addSelect("SUM(order.total)", "totalRevenue")
-            .addSelect("COUNT(order.id)", "salesCount")
-            .where("order.createdAt > :date", { date: thirtyDaysAgo })
-            .groupBy("order.seller.id, order.seller.name, order.seller.avatarUrl")
+            .createQueryBuilder("order_entity")
+            .select("order_entity.seller.id", "id")
+            .addSelect("order_entity.seller.name", "name")
+            .addSelect("order_entity.seller.avatarUrl", "avatarUrl")
+            .addSelect("SUM(order_entity.total)", "totalRevenue")
+            .addSelect("COUNT(order_entity.id)", "salesCount")
+            .where("order_entity.createdAt > :date", { date: thirtyDaysAgo })
+            .groupBy("order_entity.seller.id, order_entity.seller.name, order_entity.seller.avatarUrl")
             .orderBy("totalRevenue", "DESC")
             .limit(5)
             .getRawMany();
