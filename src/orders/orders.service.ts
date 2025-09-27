@@ -44,7 +44,8 @@ export class OrdersService {
         }
         
         const productIds = items.map(item => item.product.id);
-        const products = await manager.findBy(Product, { id: In(productIds) });
+        // FIX: Explicitly type `products` to ensure correct type inference downstream.
+        const products: Product[] = await manager.findBy(Product, { id: In(productIds) });
         const productMap = new Map(products.map(p => [p.id, p]));
 
         // 1. Validate stock first
@@ -81,6 +82,11 @@ export class OrdersService {
         let total = 0;
         for (const item of items) {
             const product = productMap.get(item.product.id);
+            // FIX: Add a guard to ensure product exists and to satisfy TypeScript's strict null checks.
+            if (!product) {
+              // This case should ideally not be hit if the first loop passed, but it's a critical safety check.
+              throw new BadRequestException(`Product with ID ${item.product.id} was not found during order creation.`);
+            }
             
             const orderItem = manager.create(OrderItem, {
               product,
@@ -98,8 +104,9 @@ export class OrdersService {
             
             // Decrement stock
             if (item.variant) {
-                const variantIndex = product.variants.findIndex(v => v.id === item.variant.id);
-                if (variantIndex !== -1) {
+                // FIX: Add optional chaining and existence check for `variants` property.
+                const variantIndex = product.variants?.findIndex(v => v.id === item.variant.id);
+                if (variantIndex !== -1 && product.variants) {
                     product.variants[variantIndex].stock -= item.quantity;
                 }
             } else {

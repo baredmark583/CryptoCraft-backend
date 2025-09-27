@@ -1,13 +1,27 @@
 import { Type } from 'class-transformer';
-import { IsArray, ValidateNested } from 'class-validator';
-import { CategorySchema } from '../../admin/constants';
+import { IsArray, ValidateNested, IsString, IsOptional } from 'class-validator';
+import { CategorySchema } from '../../constants';
+import { CategoryFieldDto } from './create-category.dto';
 
-// We can't use CreateCategoryDto directly because of recursion issues with decorators.
-// A simpler class or interface is better for validation here. We will trust the AI's structure.
-class CategoryStructureDto implements CategorySchema {
+class CategoryStructureDto implements Omit<CategorySchema, 'subcategories' | 'fields'> {
+    @IsString()
     name: string;
-    fields: any[];
+
+    @IsArray()
+    @IsOptional()
+    @ValidateNested({ each: true })
+    @Type(() => CategoryFieldDto)
+    fields: CategoryFieldDto[];
+
+    @IsString()
+    @IsOptional()
     iconUrl?: string;
+
+    // This is the key part for recursion
+    @IsArray()
+    @IsOptional()
+    @ValidateNested({ each: true })
+    @Type(() => CategoryStructureDto)
     subcategories?: CategoryStructureDto[];
 }
 

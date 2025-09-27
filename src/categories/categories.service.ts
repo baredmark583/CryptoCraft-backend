@@ -4,7 +4,7 @@ import { DataSource, Repository } from 'typeorm';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
 import { Category } from './entities/category.entity';
-import { CategorySchema } from '../admin/constants';
+import { CategorySchema } from '../constants';
 
 @Injectable()
 export class CategoriesService {
@@ -89,7 +89,7 @@ export class CategoriesService {
   async batchCreate(categories: CategorySchema[]): Promise<void> {
     await this.dataSource.transaction(async manager => {
         // Clear all existing categories for a fresh start
-        await manager.clear(Category);
+        await manager.query('TRUNCATE TABLE "categories" RESTART IDENTITY CASCADE');
 
         const saveCategoriesRecursive = async (
             categoriesToSave: CategorySchema[],

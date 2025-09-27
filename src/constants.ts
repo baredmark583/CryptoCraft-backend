@@ -2,20 +2,29 @@
 
 // --- CATEGORY DEFINITIONS ---
 
+// Updated to support hierarchical structure and match admin panel
 export interface CategoryField {
-  name: string; // Used as id
-  label: string; // Displayed label
+  id?: string;
+  name: string;
+  label: string;
   type: 'text' | 'number' | 'select';
   required?: boolean;
-  options?: string[]; // For select type
+  options?: string[];
 }
 
 export interface CategorySchema {
+  id?: string;
   name: string;
   fields: CategoryField[];
+  iconUrl?: string | null;
+  parentId?: string | null;
+  subcategories?: CategorySchema[];
 }
 
-export const CATEGORIES: CategorySchema[] = [
+
+// This static data is used as a fallback and for AI prompt generation.
+// The primary source of truth for categories is the database.
+export const CATEGORIES_FOR_AI: CategorySchema[] = [
     {
         name: 'Электроника',
         fields: [
@@ -93,5 +102,5 @@ export const CATEGORIES: CategorySchema[] = [
 ];
 
 export const getCategoryNames = (): string[] => {
-  return CATEGORIES.map(c => c.name);
+  return CATEGORIES_FOR_AI.map(c => c.name);
 };
