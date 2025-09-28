@@ -54,12 +54,15 @@ export class AuthService {
   }
 
   async validateAdmin(adminLoginDto: AdminLoginDto): Promise<Partial<User & { role: string }>> {
-    const adminEmail = this.configService.get<string>('ADMIN_EMAIL', 'admin');
-    const adminPass = this.configService.get<string>('ADMIN_PASSWORD', 'admin');
+    // FIX: Refactored logic to explicitly handle empty environment variables.
+    // This ensures that if SUPER_ADMIN_EMAIL or SUPER_ADMIN_PASSWORD exist in the .env file but are empty,
+    // the system correctly falls back to the default 'admin' credentials.
+    const adminEmail = this.configService.get<string>('SUPER_ADMIN_EMAIL') || 'admin';
+    const adminPass = this.configService.get<string>('SUPER_ADMIN_PASSWORD') || 'admin';
 
     if (adminLoginDto.email === adminEmail && adminLoginDto.password === adminPass) {
       // For admin, we create a user-like object for the JWT payload
-      return { id: 'admin-user', name: 'Administrator', role: 'admin' };
+      return { id: 'admin-user', name: 'Administrator', role: 'SUPER_ADMIN' };
     }
     throw new UnauthorizedException('Invalid admin credentials');
   }
