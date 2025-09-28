@@ -33,12 +33,15 @@ export class DashboardService {
         const totalRevenueToday = todayOrders.reduce((sum, order) => sum + order.total, 0);
         const newOrdersToday = todayOrders.length;
 
-        const profitResult = await this.orderRepository.createQueryBuilder("order")
-            .select("SUM(order.total)", "totalSum")
-            .where("order.status = :status", { status: 'COMPLETED' })
-            .getRawOne();
-        const totalSum = profitResult?.totalSum ? parseFloat(profitResult.totalSum) : 0;
-        const platformProfit = totalSum * 0.02;
+        // More robust profit calculation
+        const profitableOrders = await this.orderRepository.find({
+            where: [
+                { status: 'COMPLETED' },
+                { status: 'DELIVERED' }
+            ]
+        });
+        const totalRevenueForProfit = profitableOrders.reduce((sum, order) => sum + order.total, 0);
+        const platformProfit = totalRevenueForProfit * 0.02; // Assuming 2% commission
 
 
         const productsForModeration = await this.productRepository.count({
