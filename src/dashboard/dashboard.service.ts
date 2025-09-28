@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Order } from '../orders/entities/order.entity';
-import { MoreThan, Repository, MoreThanOrEqual } from 'typeorm';
+import { MoreThan, Repository, MoreThanOrEqual, In } from 'typeorm';
 import { User } from '../users/entities/user.entity';
 import { Product } from '../products/entities/product.entity';
 import { Dispute } from '../disputes/entities/dispute.entity';
@@ -104,20 +104,43 @@ export class DashboardService {
             }));
 
 
-        // Top Sellers
-        const topSellersData = await this.orderRepository
-            .createQueryBuilder("order_entity")
-            .innerJoin("order_entity.seller", "seller")
-            .select("seller.id", "id")
-            .addSelect("seller.name", "name")
-            .addSelect("seller.avatarUrl", "avatarUrl")
-            .addSelect("SUM(order_entity.total)", "totalRevenue")
-            .addSelect("COUNT(order_entity.id)", "salesCount")
-            .where("order_entity.createdAt > :date", { date: thirtyDaysAgo })
-            .groupBy("seller.id, seller.name, seller.avatarUrl")
-            .orderBy("totalRevenue", "DESC")
-            .limit(5)
-            .getRawMany();
+        // Top Sellers (Robust Implementation)
+        const recentSellerOrders = await this.orderRepository.find({
+            where: { 
+                createdAt: MoreThan(thirtyDaysAgo),
+                status: In(['COMPLETED', 'DELIVERED', 'SHIPPED'])
+            },
+            relations: ['seller']
+        });
+
+        const sellerStats = new Map<string, { seller: User, totalRevenue: number, salesCount: number }>();
+
+        recentSellerOrders.forEach(order => {
+            if (!order.seller) return;
+            const sellerId = order.seller.id;
+
+            if (!sellerStats.has(sellerId)) {
+                sellerStats.set(sellerId, {
+                    seller: order.seller,
+                    totalRevenue: 0,
+                    salesCount: 0
+                });
+            }
+            const stats = sellerStats.get(sellerId);
+            stats.totalRevenue += order.total;
+            stats.salesCount += 1;
+        });
+
+        const topSellers = Array.from(sellerStats.values())
+            .sort((a, b) => b.totalRevenue - a.totalRevenue)
+            .slice(0, 5)
+            .map(stat => ({
+                id: stat.seller.id,
+                name: stat.seller.name,
+                avatarUrl: stat.seller.avatarUrl,
+                totalRevenue: stat.totalRevenue,
+                salesCount: stat.salesCount
+            }));
 
 
         return {
@@ -130,7 +153,7 @@ export class DashboardService {
             },
             salesData,
             recentActivity,
-            topSellers: topSellersData.map(s => ({...s, totalRevenue: parseFloat(s.totalRevenue), salesCount: parseInt(s.salesCount, 10)})),
+            topSellers: topSellers,
         };
     }
 }
