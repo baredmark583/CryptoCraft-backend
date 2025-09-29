@@ -4,7 +4,7 @@ import { JwtService } from '@nestjs/jwt';
 import * as crypto from 'crypto';
 import { ConfigService } from '@nestjs/config';
 import { TelegramUser } from './strategies/telegram.strategy';
-import { User } from 'src/users/entities/user.entity';
+import { User, UserRole } from 'src/users/entities/user.entity';
 import { AdminLoginDto } from './dto/admin-login.dto';
 
 @Injectable()
@@ -53,22 +53,19 @@ export class AuthService {
     return this.usersService.findByTelegramIdOrCreate(user);
   }
 
-  async validateAdmin(adminLoginDto: AdminLoginDto): Promise<Partial<User & { role: string }>> {
-    // FIX: Refactored logic to explicitly handle empty environment variables.
-    // This ensures that if SUPER_ADMIN_EMAIL or SUPER_ADMIN_PASSWORD exist in the .env file but are empty,
-    // the system correctly falls back to the default 'admin' credentials.
+  async validateAdmin(adminLoginDto: AdminLoginDto): Promise<Partial<User>> {
     const adminEmail = this.configService.get<string>('SUPER_ADMIN_EMAIL') || 'admin';
     const adminPass = this.configService.get<string>('SUPER_ADMIN_PASSWORD') || 'admin';
 
     if (adminLoginDto.email === adminEmail && adminLoginDto.password === adminPass) {
       // For admin, we create a user-like object for the JWT payload
-      return { id: 'admin-user', name: 'Administrator', role: 'SUPER_ADMIN' };
+      return { id: 'admin-user', name: 'Administrator', role: UserRole.SUPER_ADMIN };
     }
     throw new UnauthorizedException('Invalid admin credentials');
   }
 
-  async login(user: Partial<User & { role?: string }>) {
-    const payload = { sub: user.id, username: user.name, role: user.role || 'user' };
+  async login(user: Partial<User>) {
+    const payload = { sub: user.id, username: user.name, role: user.role || UserRole.USER };
     return {
       access_token: this.jwtService.sign(payload),
       user: user, // Возвращаем данные пользователя на фронтенд
