@@ -1,4 +1,4 @@
-import { Injectable, InternalServerErrorException, BadRequestException } from '@nestjs/common';
+import { Injectable, InternalServerErrorException, BadRequestException, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { GoogleGenAI, Type, Modality } from '@google/genai';
 import { CategoriesService } from '../categories/categories.service';
@@ -7,6 +7,7 @@ import type { SellerAnalytics, SellerDashboardData, ImportedListingData } from '
 
 @Injectable()
 export class AiService {
+  private readonly logger = new Logger(AiService.name);
   private readonly ai: GoogleGenAI;
 
   constructor(
@@ -200,7 +201,7 @@ export class AiService {
   }
   
   async processImportedHtml(html: string): Promise<ImportedListingData> {
-    const prompt = `Ты — эксперт по анализу e-commerce страниц. Тебе предоставлен HTML-код всего тега <body> страницы товара. Твоя задача — тщательно проанализировать его и извлечь всю ключевую информацию, необходимую для создания объявления на нашем маркетплейсе. Игнорируй навигацию, футеры, рекламу и похожие товары.
+    const fullPrompt = `Ты — эксперт по анализу e-commerce страниц. Тебе предоставлен HTML-код всего тега <body> страницы товара. Твоя задача — тщательно проанализировать его и извлечь всю ключевую информацию, необходимую для создания объявления на нашем маркетплейсе. Игнорируй навигацию, футеры, рекламу и похожие товары.
 
     Твоя задача:
     1.  **Создай** привлекательный, SEO-оптимизированный заголовок и подробное описание.
@@ -210,12 +211,15 @@ export class AiService {
     5.  **Классифицируй** товар в одну из категорий: [${getCategoryNames().join(', ')}].
     6.  **Извлеки** все релевантные характеристики товара (атрибуты) в виде JSON-строки. Например: "{\\"Материал\\": \\"Хлопок\\", \\"Цвет\\": \\"Синий\\"}".
 
-    Твой ответ ДОЛЖЕН быть только в формате JSON и строго соответствовать предоставленной схеме.`;
+    Твой ответ ДОЛЖЕН быть только в формате JSON и строго соответствовать предоставленной схеме.
+    
+    HTML для анализа:
+    ${html}`;
     
     try {
         const response = await this.ai.models.generateContent({
             model: 'gemini-2.5-flash',
-            contents: { parts: [{ text: `HTML для анализа:\n\n${html}` }, { text: prompt }] },
+            contents: [{ text: fullPrompt }],
             config: {
                 responseMimeType: 'application/json',
                 responseSchema: {
@@ -238,7 +242,14 @@ export class AiService {
 
         const parsedJson = JSON.parse(response.text);
         if (typeof parsedJson.dynamicAttributes === 'string') {
-            parsedJson.dynamicAttributes = JSON.parse(parsedJson.dynamicAttributes);
+            try {
+                parsedJson.dynamicAttributes = JSON.parse(parsedJson.dynamicAttributes);
+            } catch (e) {
+                this.logger.warn(`AI returned malformed JSON for dynamicAttributes: "${parsedJson.dynamicAttributes}". Defaulting to empty object.`);
+                parsedJson.dynamicAttributes = {}; // Graceful failure
+            }
+        } else if (typeof parsedJson.dynamicAttributes !== 'object') {
+             parsedJson.dynamicAttributes = {};
         }
         return parsedJson;
     } catch (error) {
