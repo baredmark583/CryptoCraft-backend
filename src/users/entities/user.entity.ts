@@ -15,6 +15,12 @@ export interface BusinessInfo {
   registrationNumber: string;
 }
 
+export enum UserRole {
+    USER = 'USER',
+    MODERATOR = 'MODERATOR',
+    SUPER_ADMIN = 'SUPER_ADMIN',
+}
+
 @Entity('users')
 export class User {
   @PrimaryGeneratedColumn('uuid')
@@ -77,6 +83,13 @@ export class User {
   })
   verificationLevel: 'NONE' | 'PRO';
   
+  @Column({
+    type: 'enum',
+    enum: UserRole,
+    default: UserRole.USER
+  })
+  role: UserRole;
+
   @Column({ nullable: true })
   affiliateId?: string;
 
@@ -98,7 +111,6 @@ export class User {
   @OneToMany(() => Order, (order) => order.buyer)
   purchases: Order[];
 
-  // FIX: Correct the inverse relation to point to the 'seller' property on the Order entity.
   @OneToMany(() => Order, (order) => order.seller)
   sales: Order[];
 

@@ -2,9 +2,13 @@ import { Controller, Get, Patch, Param, Body, UseGuards, ParseUUIDPipe } from '@
 import { DisputesService } from './disputes.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { UpdateDisputeDto } from './dto/update-dispute.dto';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { UserRole } from '../users/entities/user.entity';
 
 @Controller('disputes')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(UserRole.SUPER_ADMIN, UserRole.MODERATOR)
 export class DisputesController {
   constructor(private readonly disputesService: DisputesService) {}
 
