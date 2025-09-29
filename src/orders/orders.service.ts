@@ -7,6 +7,7 @@ import { User } from '../users/entities/user.entity';
 import { Product } from '../products/entities/product.entity';
 import { OrderItem } from './entities/order-item.entity';
 import { UpdateOrderDto } from './dto/update-order.dto';
+import { TelegramService } from '../telegram/telegram.service';
 
 @Injectable()
 export class OrdersService {
@@ -16,6 +17,7 @@ export class OrdersService {
     private readonly orderRepository: Repository<Order>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    private readonly telegramService: TelegramService,
   ) {}
 
   async create(createOrderDto: CreateOrderDto, buyerId: string): Promise<{ success: boolean }> {
@@ -44,7 +46,6 @@ export class OrdersService {
         }
         
         const productIds = items.map(item => item.product.id);
-        // FIX: Explicitly type `products` to ensure correct type inference downstream.
         const products: Product[] = await manager.findBy(Product, { id: In(productIds) });
         const productMap = new Map(products.map(p => [p.id, p]));
 
@@ -82,9 +83,7 @@ export class OrdersService {
         let total = 0;
         for (const item of items) {
             const product = productMap.get(item.product.id);
-            // FIX: Add a guard to ensure product exists and to satisfy TypeScript's strict null checks.
             if (!product) {
-              // This case should ideally not be hit if the first loop passed, but it's a critical safety check.
               throw new BadRequestException(`Product with ID ${item.product.id} was not found during order creation.`);
             }
             
@@ -102,9 +101,7 @@ export class OrdersService {
             
             total += item.priceAtTimeOfAddition * item.quantity;
             
-            // Decrement stock
             if (item.variant) {
-                // FIX: Add optional chaining and existence check for `variants` property.
                 const variantIndex = product.variants?.findIndex(v => v.id === item.variant.id);
                 if (variantIndex !== -1 && product.variants) {
                     product.variants[variantIndex].stock -= item.quantity;
@@ -116,7 +113,14 @@ export class OrdersService {
         }
         
         newOrder.total = total;
-        await manager.save(Order, newOrder);
+        const savedOrder = await manager.save(Order, newOrder);
+        
+        // Send notification after successful save
+        try {
+            await this.telegramService.sendNewOrderNotification(seller, buyer, savedOrder.id, savedOrder.total);
+        } catch (e) {
+            console.error(`Failed to send Telegram notification for order ${savedOrder.id}`, e);
+        }
       }
     });
     
@@ -126,7 +130,7 @@ export class OrdersService {
   findAll(): Promise<Order[]> {
     return this.orderRepository.find({
         order: { createdAt: 'DESC' },
-        relations: ['buyer', 'seller', 'items', 'items.product'] // Ensure all relations are loaded
+        relations: ['buyer', 'seller', 'items', 'items.product']
     });
   }
 

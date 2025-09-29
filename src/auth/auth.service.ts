@@ -54,12 +54,12 @@ export class AuthService {
   }
 
   async validateAdmin(adminLoginDto: AdminLoginDto): Promise<Partial<User>> {
-    const adminEmail = this.configService.get<string>('SUPER_ADMIN_EMAIL') || 'admin';
-    const adminPass = this.configService.get<string>('SUPER_ADMIN_PASSWORD') || 'admin';
+    const adminEmail = (this.configService.get<string>('SUPER_ADMIN_EMAIL') || 'admin').trim();
+    const adminPass = (this.configService.get<string>('SUPER_ADMIN_PASSWORD') || 'admin').trim();
 
-    if (adminLoginDto.email === adminEmail && adminLoginDto.password === adminPass) {
+    if (adminLoginDto.email.trim() === adminEmail && adminLoginDto.password.trim() === adminPass) {
       // For admin, we create a user-like object for the JWT payload
-      return { id: 'admin-user', name: 'Administrator', role: UserRole.SUPER_ADMIN };
+      return { id: 'admin-user', email: adminEmail, name: 'Administrator', role: UserRole.SUPER_ADMIN };
     }
     throw new UnauthorizedException('Invalid admin credentials');
   }
