@@ -201,25 +201,27 @@ export class AiService {
   }
   
   async processImportedHtml(html: string): Promise<ImportedListingData> {
-    const fullPrompt = `Ты — эксперт по анализу e-commerce страниц. Тебе предоставлен HTML-код всего тега <body> страницы товара. Твоя задача — тщательно проанализировать его и извлечь всю ключевую информацию, необходимую для создания объявления на нашем маркетплейсе. Игнорируй навигацию, футеры, рекламу и похожие товары.
+    const promptInstructions = `Проанализируй HTML-код страницы товара. Игнорируй навигацию, рекламу, похожие товары.
+Ответ должен быть СТРОГО в формате JSON, по схеме.
 
-    Твоя задача:
-    1.  **Создай** привлекательный, SEO-оптимизированный заголовок и подробное описание.
-    2.  **Извлеки** цену (только число), символ или код валюты (напр., "грн", "$"), и массив ПОЛНЫХ URL-адресов всех изображений.
-    3.  **Определи**, является ли это аукционом. Если да, верни "AUCTION", иначе "FIXED_PRICE".
-    4.  **Проанализируй** текст на наличие упоминаний подарочной упаковки и верни true/false.
-    5.  **Классифицируй** товар в одну из категорий: [${getCategoryNames().join(', ')}].
-    6.  **Извлеки** все релевантные характеристики товара (атрибуты) в виде JSON-строки. Например: "{\\"Материал\\": \\"Хлопок\\", \\"Цвет\\": \\"Синий\\"}".
+- title: SEO-заголовок.
+- description: Подробное описание.
+- originalPrice: Цена (число).
+- originalCurrency: Валюта ("грн", "$").
+- imageUrls: Массив ПОЛНЫХ URL-адресов изображений.
+- category: Одна из категорий: [${getCategoryNames().join(', ')}].
+- dynamicAttributes: JSON-строка с атрибутами. Пример: "{\\"Материал\\": \\"Хлопок\\"}".
+- saleType: "AUCTION" или "FIXED_PRICE".
+- giftWrapAvailable: true/false.
 
-    Твой ответ ДОЛЖЕН быть только в формате JSON и строго соответствовать предоставленной схеме.
-    
-    HTML для анализа:
-    ${html}`;
+HTML для анализа:`;
+
+    const fullPrompt = `${promptInstructions}\n\n${html}`;
     
     try {
         const response = await this.ai.models.generateContent({
             model: 'gemini-2.5-flash',
-            contents: [{ text: fullPrompt }],
+            contents: fullPrompt,
             config: {
                 responseMimeType: 'application/json',
                 responseSchema: {
