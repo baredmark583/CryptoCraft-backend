@@ -9,7 +9,6 @@ import { ProductsModule } from './products/products.module';
 import { OrdersModule } from './orders/orders.module';
 import { AiModule } from './ai/ai.module';
 import { UploadModule } from './upload/upload.module';
-import { ScrapingModule } from './scraping/scraping.module';
 import { CategoriesModule } from './categories/categories.module';
 import { IconsModule } from './icons/icons.module';
 import { SettingsModule } from './settings/settings.module';
@@ -43,7 +42,6 @@ import { TelegramModule } from './telegram/telegram.module';
     OrdersModule,
     AiModule,
     UploadModule,
-    ScrapingModule,
     CategoriesModule,
     IconsModule,
     SettingsModule,
