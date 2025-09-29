@@ -1,94 +1,39 @@
-import { Injectable, BadRequestException, Logger, OnModuleDestroy } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import { Injectable, BadRequestException, Logger } from '@nestjs/common';
+import axios from 'axios';
 import * as cheerio from 'cheerio';
-import puppeteer, { Browser } from 'puppeteer';
 
 @Injectable()
-export class ScrapingService implements OnModuleDestroy {
+export class ScrapingService {
   private readonly logger = new Logger(ScrapingService.name);
-  private browser: Browser | null = null;
-  private isInitializing = false;
-
-  constructor(private readonly configService: ConfigService) {
-    this.initializeBrowser();
-  }
-
-  async onModuleDestroy() {
-    this.logger.log('Closing Puppeteer browser instance...');
-    if (this.browser) {
-      await this.browser.close();
-      this.browser = null;
-    }
-  }
-
-  private async initializeBrowser() {
-    if (this.browser || this.isInitializing) {
-        return;
-    }
-    this.isInitializing = true;
-    this.logger.log('Initializing Puppeteer browser instance...');
-    try {
-      this.browser = await puppeteer.launch({
-        headless: true,
-        // These arguments are crucial for running Puppeteer in Docker/serverless environments like Render
-        args: [
-          '--no-sandbox',
-          '--disable-setuid-sandbox',
-          '--disable-dev-shm-usage',
-          '--disable-accelerated-2d-canvas',
-          '--no-first-run',
-          '--no-zygote',
-          '--single-process', 
-          '--disable-gpu',
-        ],
-      });
-      this.logger.log('Puppeteer browser initialized successfully.');
-    } catch (error) {
-        this.logger.error('Failed to initialize Puppeteer browser:', error);
-        this.browser = null;
-    } finally {
-        this.isInitializing = false;
-    }
-  }
 
   async scrapeUrl(url: string): Promise<{ cleanHtml: string }> {
     if (!url) {
       throw new BadRequestException('URL is required');
     }
 
-    if (!this.browser) {
-        this.logger.error('Puppeteer browser is not initialized. Attempting to re-initialize...');
-        await this.initializeBrowser();
-        if (!this.browser) {
-             throw new BadRequestException('Scraping service is not available. Please try again later.');
-        }
-    }
-
-    let page;
     try {
-      page = await this.browser.newPage();
-      this.logger.log(`Navigating to ${url} with Puppeteer...`);
-      await page.setUserAgent(
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36',
-      );
-      
-      await page.goto(url, {
-        waitUntil: 'networkidle2', // Wait for network activity to cease
-        timeout: 45000,
+      this.logger.log(`Fetching URL with axios: ${url}`);
+      const { data: html } = await axios.get(url, {
+        headers: {
+          'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+          'Accept-Language': 'en-US,en;q=0.9',
+          'Accept-Encoding': 'gzip, deflate, br',
+        },
+        timeout: 20000,
       });
-      
-      this.logger.log(`Page loaded. Getting content...`);
-      const html = await page.content();
 
       if (!html) {
         throw new Error('Received empty HTML content from the page.');
       }
 
+      this.logger.log(`HTML received. Cleaning with Cheerio...`);
       const $ = cheerio.load(html);
-      
+
       const body = $('body');
       body.find(
-        'script, style, link[rel="stylesheet"], noscript, iframe, footer, header, nav, svg, path',
+        'script, style, link[rel="stylesheet"], noscript, iframe, footer, header, nav, svg, path, aside, form',
       ).remove();
       
       body.find('*').each(function () {
@@ -100,14 +45,17 @@ export class ScrapingService implements OnModuleDestroy {
             const srcset = element.attr('srcset');
             if (src) preservedAttrs.src = src;
             if (srcset) preservedAttrs.srcset = srcset;
+        } else if (element.is('a')) {
+            const href = element.attr('href');
+            if(href) preservedAttrs.href = href;
         }
         
-        this.attribs = preservedAttrs;
+        element[0].attribs = preservedAttrs;
       });
 
       const cleanHtml = body.html();
 
-      if (!cleanHtml || cleanHtml.trim().length < 200) {
+      if (!cleanHtml || cleanHtml.trim().length < 100) {
         throw new Error(
           'Cleaned content is too short, page might be blocked or empty.',
         );
@@ -115,15 +63,11 @@ export class ScrapingService implements OnModuleDestroy {
 
       return { cleanHtml };
     } catch (error) {
-      this.logger.error(`Error scraping ${url}:`, error.message);
-      throw new BadRequestException(
-        `Failed to get data from the page. The site may be unavailable or protected from scraping (e.g., with Cloudflare/CAPTCHA).`,
-      );
-    } finally {
-        if (page) {
-            this.logger.log(`Closing page for ${url}`);
-            await page.close();
-        }
+      this.logger.error(`Error scraping ${url} with axios:`, error.message);
+      if (axios.isAxiosError(error)) {
+        throw new BadRequestException(`Failed to get data from the page. Status: ${error.response?.status}. The site may be down or blocking requests.`);
+      }
+      throw new BadRequestException(`Failed to scrape the URL. It may be protected or invalid.`);
     }
   }
 }
