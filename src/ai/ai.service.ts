@@ -255,7 +255,10 @@ HTML для анализа:`;
         }
         return parsedJson;
     } catch (error) {
-        console.error("Error in processImportedHtml:", error);
+        this.logger.error(`Error in processImportedHtml:`, error);
+        if (error.message?.includes('RESOURCE_EXHAUSTED')) {
+            throw new BadRequestException('Превышен лимит запросов к AI. Пожалуйста, попробуйте позже.');
+        }
         throw new InternalServerErrorException('Failed to process HTML with AI');
     }
   }

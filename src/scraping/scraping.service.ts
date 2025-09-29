@@ -7,6 +7,7 @@ import puppeteer, { Browser } from 'puppeteer';
 export class ScrapingService implements OnModuleDestroy {
   private readonly logger = new Logger(ScrapingService.name);
   private browser: Browser | null = null;
+  private isInitializing = false;
 
   constructor(private readonly configService: ConfigService) {
     this.initializeBrowser();
@@ -21,6 +22,10 @@ export class ScrapingService implements OnModuleDestroy {
   }
 
   private async initializeBrowser() {
+    if (this.browser || this.isInitializing) {
+        return;
+    }
+    this.isInitializing = true;
     this.logger.log('Initializing Puppeteer browser instance...');
     try {
       this.browser = await puppeteer.launch({
@@ -41,10 +46,12 @@ export class ScrapingService implements OnModuleDestroy {
     } catch (error) {
         this.logger.error('Failed to initialize Puppeteer browser:', error);
         this.browser = null;
+    } finally {
+        this.isInitializing = false;
     }
   }
 
-  async scrapeUrl(url: string): Promise<{ cleanText: string }> {
+  async scrapeUrl(url: string): Promise<{ cleanHtml: string }> {
     if (!url) {
       throw new BadRequestException('URL is required');
     }
@@ -57,8 +64,9 @@ export class ScrapingService implements OnModuleDestroy {
         }
     }
 
-    const page = await this.browser.newPage();
+    let page;
     try {
+      page = await this.browser.newPage();
       this.logger.log(`Navigating to ${url} with Puppeteer...`);
       await page.setUserAgent(
         'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36',
@@ -105,15 +113,17 @@ export class ScrapingService implements OnModuleDestroy {
         );
       }
 
-      return { cleanText: cleanHtml };
+      return { cleanHtml };
     } catch (error) {
       this.logger.error(`Error scraping ${url}:`, error.message);
       throw new BadRequestException(
         `Failed to get data from the page. The site may be unavailable or protected from scraping (e.g., with Cloudflare/CAPTCHA).`,
       );
     } finally {
-        this.logger.log(`Closing page for ${url}`);
-        await page.close();
+        if (page) {
+            this.logger.log(`Closing page for ${url}`);
+            await page.close();
+        }
     }
   }
 }
