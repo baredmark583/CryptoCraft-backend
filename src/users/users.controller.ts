@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, ParseUUIDPipe, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, ParseUUIDPipe, UseGuards, Req, ForbiddenException } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -37,8 +37,31 @@ export class UsersController {
   }
 
   @Patch(':id')
-  @Roles(UserRole.SUPER_ADMIN)
-  update(@Param('id', ParseUUIDPipe) id: string, @Body() updateUserDto: UpdateUserDto) {
+  update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() updateUserDto: UpdateUserDto,
+    @Req() req,
+  ) {
+    const requestingUser = req.user;
+
+    // A user can update their own profile, OR a super admin can update any profile.
+    if (
+      requestingUser.role !== UserRole.SUPER_ADMIN &&
+      requestingUser.userId !== id
+    ) {
+      throw new ForbiddenException(
+        'You do not have permission to update this user.',
+      );
+    }
+
+    // A non-admin user cannot change their role.
+    if (
+      requestingUser.role !== UserRole.SUPER_ADMIN &&
+      updateUserDto.role
+    ) {
+      throw new ForbiddenException('You are not allowed to change user roles.');
+    }
+    
     return this.usersService.update(id, updateUserDto);
   }
 

@@ -105,6 +105,9 @@ export class User {
   @Column({ nullable: true, unique: true })
   tonWalletAddress?: string;
 
+  @Column({ nullable: true })
+  paymentCard?: string;
+
   @OneToMany(() => Product, (product) => product.seller)
   products: Product[];
 

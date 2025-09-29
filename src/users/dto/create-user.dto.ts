@@ -62,4 +62,8 @@ export class CreateUserDto {
   @IsString()
   @IsOptional()
   tonWalletAddress?: string;
+
+  @IsString()
+  @IsOptional()
+  paymentCard?: string;
 }
