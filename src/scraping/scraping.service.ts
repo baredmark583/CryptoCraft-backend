@@ -1,60 +1,99 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, Logger, OnModuleDestroy } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import axios from 'axios';
 import * as cheerio from 'cheerio';
+import puppeteer, { Browser } from 'puppeteer';
 
 @Injectable()
-export class ScrapingService {
-  constructor(private readonly configService: ConfigService) {}
+export class ScrapingService implements OnModuleDestroy {
+  private readonly logger = new Logger(ScrapingService.name);
+  private browser: Browser | null = null;
+
+  constructor(private readonly configService: ConfigService) {
+    this.initializeBrowser();
+  }
+
+  async onModuleDestroy() {
+    this.logger.log('Closing Puppeteer browser instance...');
+    if (this.browser) {
+      await this.browser.close();
+      this.browser = null;
+    }
+  }
+
+  private async initializeBrowser() {
+    this.logger.log('Initializing Puppeteer browser instance...');
+    try {
+      this.browser = await puppeteer.launch({
+        headless: true,
+        // These arguments are crucial for running Puppeteer in Docker/serverless environments like Render
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-accelerated-2d-canvas',
+          '--no-first-run',
+          '--no-zygote',
+          '--single-process', 
+          '--disable-gpu',
+        ],
+      });
+      this.logger.log('Puppeteer browser initialized successfully.');
+    } catch (error) {
+        this.logger.error('Failed to initialize Puppeteer browser:', error);
+        this.browser = null;
+    }
+  }
 
   async scrapeUrl(url: string): Promise<{ cleanText: string }> {
     if (!url) {
       throw new BadRequestException('URL is required');
     }
 
-    // Используем общедоступный прокси для обхода CORS и базовых мер защиты от ботов.
-    // В продакшене это был бы специализированный API для скрапинга.
-    const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(
-      url,
-    )}`;
+    if (!this.browser) {
+        this.logger.error('Puppeteer browser is not initialized. Attempting to re-initialize...');
+        await this.initializeBrowser();
+        if (!this.browser) {
+             throw new BadRequestException('Scraping service is not available. Please try again later.');
+        }
+    }
 
+    const page = await this.browser.newPage();
     try {
-      const { data: html } = await axios.get(proxyUrl, {
-        headers: {
-          'User-Agent':
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36',
-        },
-        timeout: 45000, // 45 секунд
+      this.logger.log(`Navigating to ${url} with Puppeteer...`);
+      await page.setUserAgent(
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36',
+      );
+      
+      await page.goto(url, {
+        waitUntil: 'networkidle2', // Wait for network activity to cease
+        timeout: 45000,
       });
+      
+      this.logger.log(`Page loaded. Getting content...`);
+      const html = await page.content();
 
       if (!html) {
-        throw new Error('Получено пустое HTML-содержимое от прокси.');
+        throw new Error('Received empty HTML content from the page.');
       }
 
-      // Загружаем HTML в Cheerio для очистки перед отправкой в AI
       const $ = cheerio.load(html);
       
       const body = $('body');
-
-      // Удаляем ненужные теги, чтобы уменьшить количество токенов и шум для AI
       body.find(
         'script, style, link[rel="stylesheet"], noscript, iframe, footer, header, nav, svg, path',
       ).remove();
-
-      // Удаляем все атрибуты, КРОМЕ 'src' и 'srcset' у изображений
+      
       body.find('*').each(function () {
         const element = $(this);
         const preservedAttrs: { [key: string]: string } = {};
         
-        // Сохраняем src и srcset только для тегов <img>
         if (element.is('img')) {
             const src = element.attr('src');
             const srcset = element.attr('srcset');
             if (src) preservedAttrs.src = src;
             if (srcset) preservedAttrs.srcset = srcset;
         }
-
-        // Заменяем все атрибуты элемента только сохраненными (для img) или пустым объектом (для всех остальных)
+        
         this.attribs = preservedAttrs;
       });
 
@@ -62,18 +101,19 @@ export class ScrapingService {
 
       if (!cleanHtml || cleanHtml.trim().length < 200) {
         throw new Error(
-          'Извлеченный контент слишком короткий, возможно, страница была заблокирована.',
+          'Cleaned content is too short, page might be blocked or empty.',
         );
       }
 
-      // Возвращаем очищенный HTML-контент
       return { cleanText: cleanHtml };
     } catch (error) {
-      console.error(`Ошибка сбора данных для ${url}:`, error.message);
-      // Предоставляем более понятное сообщение об ошибке
+      this.logger.error(`Error scraping ${url}:`, error.message);
       throw new BadRequestException(
-        `Не удалось получить данные со страницы. Сайт может быть недоступен или защищен от сбора данных. Попробуйте другую ссылку.`,
+        `Failed to get data from the page. The site may be unavailable or protected from scraping (e.g., with Cloudflare/CAPTCHA).`,
       );
+    } finally {
+        this.logger.log(`Closing page for ${url}`);
+        await page.close();
     }
   }
 }
