@@ -9,7 +9,6 @@ import { DashboardFocusDto } from './dto/dashboard-focus.dto';
 import { ProcessHtmlDto } from './dto/process-html.dto';
 import { GenerateCategoryStructureDto } from './dto/generate-category-structure.dto';
 import { GenerateSubcategoriesDto } from './dto/generate-subcategories.dto';
-import { ScrapeUrlDto } from './dto/scrape-url.dto';
 
 @Controller('ai')
 @UseGuards(JwtAuthGuard)
@@ -51,11 +50,6 @@ export class AiController {
   @Post('process-html')
   processHtml(@Body() processHtmlDto: ProcessHtmlDto) {
       return this.aiService.processImportedHtml(processHtmlDto.html);
-  }
-
-  @Post('scrape-and-process')
-  scrapeAndProcess(@Body() scrapeUrlDto: ScrapeUrlDto) {
-    return this.aiService.scrapeAndProcessUrl(scrapeUrlDto.url);
   }
 
   @Post('generate-category-structure')

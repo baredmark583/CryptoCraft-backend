@@ -4,7 +4,6 @@ import { GoogleGenAI, Type, Modality } from '@google/genai';
 import { CategoriesService } from '../categories/categories.service';
 import { getCategoryNames } from '../constants'; // Assuming constants file is accessible
 import type { SellerAnalytics, SellerDashboardData, ImportedListingData } from '../types';
-import { ScrapingService } from 'src/scraping/scraping.service';
 
 @Injectable()
 export class AiService {
@@ -14,7 +13,6 @@ export class AiService {
   constructor(
     private configService: ConfigService,
     private categoriesService: CategoriesService,
-    private scrapingService: ScrapingService,
     ) {
     const apiKey = this.configService.get<string>('API_KEY');
     if (!apiKey) {
@@ -260,12 +258,6 @@ HTML для анализа:`;
         console.error("Error in processImportedHtml:", error);
         throw new InternalServerErrorException('Failed to process HTML with AI');
     }
-  }
-
-  async scrapeAndProcessUrl(url: string): Promise<ImportedListingData> {
-    this.logger.log(`Starting scrape and process for URL: ${url}`);
-    const { cleanText } = await this.scrapingService.scrapeUrl(url);
-    return this.processImportedHtml(cleanText);
   }
 
   async generateCategoryStructure(description: string) {
