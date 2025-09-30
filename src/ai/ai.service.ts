@@ -41,7 +41,7 @@ export class AiService {
 
     try {
       const response = await this.ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: 'gemini-2.5-pro',
         contents: { parts: [imagePart, { text: prompt }] },
         config: {
           responseMimeType: 'application/json',
@@ -101,7 +101,7 @@ export class AiService {
 
     try {
         const response = await this.ai.models.generateContent({
-            model: 'gemini-2.5-flash',
+            model: 'gemini-2.5-pro',
             contents: { parts: [{ inlineData: { data: imageBase64, mimeType: 'image/jpeg' } }, { text: prompt }] },
             config: {
                 responseMimeType: 'application/json',
@@ -136,7 +136,7 @@ export class AiService {
 
     try {
         const response = await this.ai.models.generateContent({
-            model: 'gemini-2.5-flash',
+            model: 'gemini-2.5-pro',
             contents: { parts: [{ text: prompt }] },
             config: {
                 responseMimeType: 'application/json',
@@ -177,7 +177,7 @@ export class AiService {
 
        try {
         const response = await this.ai.models.generateContent({
-            model: 'gemini-2.5-flash',
+            model: 'gemini-2.5-pro',
             contents: { parts: [{ text: prompt }] },
             config: {
                 responseMimeType: 'application/json',
@@ -220,7 +220,7 @@ HTML для анализа:`;
     
     try {
         const response = await this.ai.models.generateContent({
-            model: 'gemini-2.5-flash',
+            model: 'gemini-2.5-pro',
             contents: fullPrompt,
             config: {
                 responseMimeType: 'application/json',
@@ -354,7 +354,7 @@ HTML для анализа:`;
 
     try {
         const response = await this.ai.models.generateContent({
-            model: 'gemini-2.5-flash',
+            model: 'gemini-2.5-pro',
             contents: { parts: [{ text: prompt }] },
             config: {
                 responseMimeType: 'application/json',
@@ -428,7 +428,7 @@ HTML для анализа:`;
 
     try {
         const response = await this.ai.models.generateContent({
-            model: 'gemini-2.5-flash',
+            model: 'gemini-2.5-pro',
             contents: { parts: [{ text: prompt }] },
             config: {
                 responseMimeType: 'application/json',
