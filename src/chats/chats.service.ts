@@ -26,10 +26,12 @@ export class ChatsService {
 
   async getChats(userId: string): Promise<any[]> {
     this.logger.log(`Fetching chats for user ${userId}`);
-    const userChats = await this.chatRepository.find({
-        where: { participants: { id: userId } },
-        relations: ['participants'],
-    });
+    
+    // More robust query to ensure all participants are fetched for each chat the user is in.
+    const userChats = await this.chatRepository.createQueryBuilder("chat")
+        .leftJoinAndSelect("chat.participants", "participant")
+        .innerJoin("chat.participants", "user", "user.id = :userId", { userId })
+        .getMany();
 
     if (userChats.length === 0) {
         this.logger.log(`User ${userId} has no chats.`);
@@ -63,17 +65,20 @@ export class ChatsService {
 
     const formattedChats = userChats
         .map(chat => {
-            const otherParticipants = chat.participants?.filter(p => p && p.id !== userId);
-            let participant = otherParticipants?.[0];
+            const participant = chat.participants?.find(p => p && p.id !== userId);
             
-            // If the other participant is missing (e.g., deleted user), create a placeholder.
             if (!participant) {
                 this.logger.warn(`Chat ${chat.id} has a missing or invalid participant. Creating a placeholder.`);
-                participant = {
-                    id: 'deleted-user',
-                    name: 'Удаленный пользователь',
-                    avatarUrl: 'https://via.placeholder.com/100', // A default avatar
-                } as User;
+                return {
+                    id: chat.id,
+                    participant: {
+                        id: 'deleted-user',
+                        name: 'Удаленный пользователь',
+                        avatarUrl: 'https://picsum.photos/seed/deleted-user/100',
+                    },
+                    messages: [],
+                    lastMessage: lastMessageMap.get(chat.id) || null,
+                };
             }
 
             return {
@@ -136,17 +141,18 @@ export class ChatsService {
           relations: ['sender', 'productContext', 'chat'],
       });
       
-      const otherParticipants = chat.participants.filter(p => p && p.id !== userId);
-      let participant = otherParticipants?.[0];
+      const participant = chat.participants.find(p => p && p.id !== userId);
       
-      // If the other participant is missing, create a placeholder.
       if (!participant) {
           this.logger.warn(`Chat ${chatId} has a missing participant in detail view. Using placeholder.`);
-          participant = {
+          const placeholderParticipant = {
               id: 'deleted-user',
               name: 'Удаленный пользователь',
-              avatarUrl: 'https://via.placeholder.com/100',
+              avatarUrl: 'https://picsum.photos/seed/deleted-user/100',
           } as User;
+          
+          const { participants, ...restOfChat } = chat;
+          return { ...restOfChat, messages, participant: placeholderParticipant };
       }
       
       const { participants, ...restOfChat } = chat;
