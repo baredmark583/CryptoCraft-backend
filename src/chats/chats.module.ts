@@ -15,5 +15,6 @@ import { TelegramModule } from '../telegram/telegram.module';
   ],
   controllers: [ChatsController],
   providers: [ChatsService],
+  exports: [ChatsService],
 })
 export class ChatsModule {}

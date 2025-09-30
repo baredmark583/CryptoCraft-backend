@@ -95,7 +95,7 @@ export class ChatsService {
       const messages = await this.messageRepository.find({
           where: { chat: { id: chatId } },
           order: { createdAt: 'ASC' },
-          relations: ['sender', 'productContext'],
+          relations: ['sender', 'productContext', 'chat'],
       });
       
       const participant = chat.participants.find(p => p.id !== userId);
@@ -134,11 +134,14 @@ export class ChatsService {
     });
     const savedMessage = await this.messageRepository.save(newMessage);
     
-    const recipient = chat.participants.find(p => p.id !== senderId);
-    if (recipient) {
-        this.telegramService.sendNewMessageNotification(recipient, sender, savedMessage.text || '[Изображение]');
-    }
+    // The gateway will now handle real-time notifications.
+    // If needed, offline notification logic (like Telegram) could be added here
+    // based on user's socket connection status managed by the gateway.
 
-    return savedMessage;
+    // Return the full message object with relations
+    return this.messageRepository.findOne({
+        where: { id: savedMessage.id },
+        relations: ['sender', 'productContext', 'chat'],
+    });
   }
 }

@@ -17,6 +17,7 @@ import { DisputesModule } from './disputes/disputes.module';
 import { TransactionsModule } from './transactions/transactions.module';
 import { TelegramModule } from './telegram/telegram.module';
 import { ChatsModule } from './chats/chats.module';
+import { EventsModule } from './events/events.module';
 
 @Module({
   imports: [
@@ -51,6 +52,7 @@ import { ChatsModule } from './chats/chats.module';
     TransactionsModule,
     TelegramModule,
     ChatsModule,
+    EventsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
