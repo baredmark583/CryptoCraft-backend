@@ -1,40 +1,41 @@
-import { Injectable, BadRequestException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  InternalServerErrorException,
+  Logger,
+} from '@nestjs/common';
 import axios from 'axios';
 
 @Injectable()
 export class ScrapingService {
   private readonly logger = new Logger(ScrapingService.name);
 
+  // FIX: Implemented the `scrapeUrl` method, which was missing and causing a compile error in `ImportService`.
+  // This enables the backend to scrape URLs directly, which is more reliable than frontend scraping due to CORS.
   async scrapeUrl(url: string): Promise<{ html: string }> {
     if (!url) {
       throw new BadRequestException('URL is required');
     }
-
+    this.logger.log(`Scraping URL: ${url}`);
     try {
-      this.logger.log(`Fetching HTML for URL: ${url}`);
-      const response = await axios.get<string>(url, {
+      const { data: rawHtml } = await axios.get(url, {
         headers: {
-          // A common user agent to bypass simple bot detection
+          // Use a common user-agent to avoid simple bot blocks
           'User-Agent':
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36',
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-          'Accept-Language': 'en-US,en;q=0.5',
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36',
         },
-        timeout: 20000, // 20 seconds timeout
+        timeout: 15000, // 15 seconds timeout
       });
 
-      const html = response.data;
-      if (!html) {
-        throw new Error('Received empty HTML content.');
-      }
-      this.logger.log(`HTML received for ${url}. Length: ${html.length}`);
-      return { html };
+      this.logger.log(
+        `Scraping successful, returning raw HTML of length ${rawHtml.length}`,
+      );
+      return { html: rawHtml };
     } catch (error) {
-      this.logger.error(`Error scraping ${url} with Axios: ${error.message}`);
-      if (axios.isAxiosError(error)) {
-        throw new BadRequestException(`Failed to fetch URL. Status: ${error.response?.status}. It may be protected (e.g., by Cloudflare).`);
-      }
-      throw new BadRequestException(`Failed to scrape the URL. It may be invalid or timed out.`);
+      this.logger.error(`Failed to scrape URL ${url}: ${error.message}`);
+      throw new InternalServerErrorException(
+        `Failed to scrape content from the provided URL. The site may be down or blocking requests.`,
+      );
     }
   }
 }

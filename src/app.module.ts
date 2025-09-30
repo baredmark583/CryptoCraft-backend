@@ -16,7 +16,6 @@ import { DashboardModule } from './dashboard/dashboard.module';
 import { DisputesModule } from './disputes/disputes.module';
 import { TransactionsModule } from './transactions/transactions.module';
 import { TelegramModule } from './telegram/telegram.module';
-import { ScrapingModule } from './scraping/scraping.module';
 
 @Module({
   imports: [
@@ -50,7 +49,6 @@ import { ScrapingModule } from './scraping/scraping.module';
     DisputesModule,
     TransactionsModule,
     TelegramModule,
-    ScrapingModule,
   ],
   controllers: [AppController],
   providers: [AppService],

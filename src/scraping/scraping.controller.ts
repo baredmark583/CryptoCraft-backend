@@ -1,14 +1,4 @@
-import { Controller, Post, Body, UseGuards } from '@nestjs/common';
-import { ScrapingService } from './scraping.service';
-import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
-
+import { Controller } from '@nestjs/common';
+// Controller is now empty as the functionality has been moved to the frontend per user request.
 @Controller('scrape')
-@UseGuards(JwtAuthGuard)
-export class ScrapingController {
-  constructor(private readonly scrapingService: ScrapingService) {}
-
-  @Post()
-  scrape(@Body('url') url: string) {
-    return this.scrapingService.scrapeUrl(url);
-  }
-}
+export class ScrapingController {}
