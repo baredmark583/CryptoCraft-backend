@@ -63,20 +63,25 @@ export class ChatsService {
 
     const formattedChats = userChats
         .map(chat => {
-            const participant = chat.participants?.find(p => p && p.id !== userId);
+            let participant = chat.participants?.find(p => p && p.id !== userId);
+            
+            // If the other participant is missing (e.g., deleted user), create a placeholder.
             if (!participant) {
-                this.logger.warn(`Filtering out chat ${chat.id} due to no valid participant.`);
-                return null;
+                this.logger.warn(`Chat ${chat.id} has a missing or invalid participant. Creating a placeholder.`);
+                participant = {
+                    id: 'deleted-user',
+                    name: 'Удаленный пользователь',
+                    avatarUrl: 'https://via.placeholder.com/100', // A default avatar
+                } as User;
             }
 
             return {
                 id: chat.id,
                 participant,
                 messages: [],
-                lastMessage: lastMessageMap.get(chat.id) || null, // Get from map, or null if no messages
+                lastMessage: lastMessageMap.get(chat.id) || null,
             };
-        })
-        .filter(Boolean); // Removes nulls
+        });
 
     // Sort by last message timestamp.
     return (formattedChats as any[]).sort((a, b) => {
@@ -130,7 +135,17 @@ export class ChatsService {
           relations: ['sender', 'productContext', 'chat'],
       });
       
-      const participant = chat.participants.find(p => p && p.id !== userId);
+      let participant = chat.participants.find(p => p && p.id !== userId);
+      
+      // If the other participant is missing, create a placeholder.
+      if (!participant) {
+          this.logger.warn(`Chat ${chatId} has a missing participant in detail view. Using placeholder.`);
+          participant = {
+              id: 'deleted-user',
+              name: 'Удаленный пользователь',
+              avatarUrl: 'https://via.placeholder.com/100',
+          } as User;
+      }
       
       const { participants, ...restOfChat } = chat;
       return { ...restOfChat, messages, participant };
