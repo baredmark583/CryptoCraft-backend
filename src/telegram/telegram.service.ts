@@ -37,4 +37,12 @@ export class TelegramService {
         await this.sendMessage(seller.telegramId, message);
     }
   }
+
+  async sendNewMessageNotification(recipient: User, sender: User, messageText: string) {
+    if (recipient.telegramId) {
+        const truncatedText = messageText.length > 100 ? `${messageText.substring(0, 100)}...` : messageText;
+        const message = `📬 *Новое сообщение* от *${sender.name}*:\n\n${truncatedText}`;
+        await this.sendMessage(recipient.telegramId, message);
+    }
+  }
 }

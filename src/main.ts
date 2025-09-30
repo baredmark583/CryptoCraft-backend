@@ -1,3 +1,4 @@
+
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
@@ -7,22 +8,25 @@ import { json, urlencoded } from 'express';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  // FIX: Explicitly type configService to resolve Untyped function call error.
   const configService: ConfigService = app.get(ConfigService);
   const frontendUrl = configService.get<string>('FRONTEND_URL');
   const adminUrl = configService.get<string>('ADMIN_URL');
 
   // Whitelist of allowed origins for CORS.
-  // Using an array for more direct control with the origin function.
   const whitelist = [
     'https://cryptocraft-frontend.onrender.com', // Production Frontend
     'https://administrator-wusk.onrender.com',  // Production Admin
+    'http://localhost:3000', // Local frontend dev
+    'http://localhost:5173', // Local admin dev (default Vite)
   ];
 
-  // Add URLs from environment variables if they exist
-  if (frontendUrl) whitelist.push(frontendUrl);
-  if (adminUrl) whitelist.push(adminUrl);
-
+  // Add URLs from environment variables if they exist to allow flexibility
+  if (frontendUrl && !whitelist.includes(frontendUrl)) {
+    whitelist.push(frontendUrl);
+  }
+  if (adminUrl && !whitelist.includes(adminUrl)) {
+    whitelist.push(adminUrl);
+  }
 
   app.enableCors({
     origin: (origin, callback) => {
@@ -31,11 +35,12 @@ async function bootstrap() {
       if (!origin || whitelist.indexOf(origin) !== -1) {
         callback(null, true);
       } else {
-        console.warn(`CORS: Rejected origin: ${origin}. Allowed origins are: ${whitelist.join(', ')}`);
+        // Log the rejected origin for debugging purposes.
+        console.warn(`CORS: Origin ${origin} rejected. Allowed origins are: ${whitelist.join(', ')}`);
         callback(new Error('Not allowed by CORS'));
       }
     },
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS', // Explicitly add OPTIONS
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
   });
 

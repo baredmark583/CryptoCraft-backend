@@ -16,6 +16,7 @@ import { DashboardModule } from './dashboard/dashboard.module';
 import { DisputesModule } from './disputes/disputes.module';
 import { TransactionsModule } from './transactions/transactions.module';
 import { TelegramModule } from './telegram/telegram.module';
+import { ChatsModule } from './chats/chats.module';
 
 @Module({
   imports: [
@@ -49,6 +50,7 @@ import { TelegramModule } from './telegram/telegram.module';
     DisputesModule,
     TransactionsModule,
     TelegramModule,
+    ChatsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

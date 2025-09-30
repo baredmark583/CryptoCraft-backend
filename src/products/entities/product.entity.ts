@@ -2,6 +2,7 @@ import { Entity, Column, ManyToOne, OneToMany } from 'typeorm';
 import { BaseEntity, DecimalTransformer } from '../../database/base.entity';
 import { User } from '../../users/entities/user.entity';
 import { OrderItem } from '../../orders/entities/order-item.entity';
+import { Message } from '../../chats/entities/message.entity';
 
 // Типы для jsonb полей, взяты из frontend/types.ts для справки
 export interface VariantAttribute {
@@ -201,6 +202,9 @@ export class Product extends BaseEntity {
   @OneToMany(() => OrderItem, (orderItem) => orderItem.product)
   orderItems: OrderItem[];
   
+  @OneToMany(() => Message, (message) => message.productContext)
+  messageContexts: Message[];
+
   // Moderation
   @Column({
     type: 'enum',

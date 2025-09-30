@@ -1,7 +1,9 @@
-import { Entity, Column, OneToMany, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import { Entity, Column, OneToMany, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, ManyToMany } from 'typeorm';
 import { Product } from '../../products/entities/product.entity';
 import { Order } from '../../orders/entities/order.entity';
 import { DecimalTransformer } from '../../database/base.entity';
+import { Chat } from '../../chats/entities/chat.entity';
+import { Message } from '../../chats/entities/message.entity';
 
 // Define jsonb types directly here as they are simple
 export interface ShippingAddress {
@@ -116,6 +118,12 @@ export class User {
 
   @OneToMany(() => Order, (order) => order.seller)
   sales: Order[];
+
+  @ManyToMany(() => Chat, (chat) => chat.participants)
+  chats: Chat[];
+
+  @OneToMany(() => Message, (message) => message.sender)
+  sentMessages: Message[];
 
   @CreateDateColumn()
   createdAt: Date;
