@@ -40,8 +40,9 @@ export class TelegramService {
 
   async sendNewMessageNotification(recipient: User, sender: User, messageText: string) {
     if (recipient.telegramId) {
-        const truncatedText = messageText.length > 100 ? `${messageText.substring(0, 100)}...` : messageText;
-        const message = `📬 *Новое сообщение* от *${sender.name}*:\n\n${truncatedText}`;
+        const content = messageText ? messageText : 'Отправлено изображение';
+        const truncatedText = content.length > 100 ? `${content.substring(0, 100)}...` : content;
+        const message = `📬 *Новое сообщение* от *${sender.name}*:\n\n_${truncatedText}_`;
         await this.sendMessage(recipient.telegramId, message);
     }
   }

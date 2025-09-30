@@ -41,20 +41,36 @@ export class ChatsService {
         })
     );
     
-    const formattedChats = chatsWithLastMessage.map(chat => {
-        const participant = chat.participants.find(p => p && p.id !== userId);
+    const formattedChats = chatsWithLastMessage
+      .map(chat => {
+        // Ensure participants array is valid before finding
+        const participant = chat.participants?.find(p => p && p.id !== userId);
+
+        // If there's no valid participant (e.g., chat with a deleted user), filter out this chat
+        if (!participant || !participant.id) {
+          this.logger.warn(`Chat ${chat.id} has no valid participant other than the current user ${userId}. Filtering it out.`);
+          return null;
+        }
+
         return {
-            id: chat.id,
-            participant,
-            messages: [],
-            lastMessage: chat.lastMessage,
+          id: chat.id,
+          participant,
+          messages: [],
+          lastMessage: chat.lastMessage,
         };
-    });
+      })
+      .filter(Boolean); // This removes the nulls
     
-    return formattedChats.sort((a,b) => {
-        const timeA = a.lastMessage?.createdAt?.getTime() || 0;
-        const timeB = b.lastMessage?.createdAt?.getTime() || 0;
-        return timeB - timeA;
+    // Robust sorting that handles invalid or missing dates
+    return (formattedChats as any[]).sort((a, b) => {
+      const timeA = a.lastMessage?.createdAt ? new Date(a.lastMessage.createdAt).getTime() : 0;
+      const timeB = b.lastMessage?.createdAt ? new Date(b.lastMessage.createdAt).getTime() : 0;
+      
+      // Handle potential NaN from invalid dates
+      const validTimeA = isNaN(timeA) ? 0 : timeA;
+      const validTimeB = isNaN(timeB) ? 0 : timeB;
+
+      return validTimeB - validTimeA;
     });
   }
 
@@ -138,11 +154,19 @@ export class ChatsService {
     });
     const savedMessage = await this.messageRepository.save(newMessage);
     
-    // The gateway will now handle real-time notifications.
-    // If needed, offline notification logic (like Telegram) could be added here
-    // based on user's socket connection status managed by the gateway.
+    // Send offline notification via Telegram
+    const recipient = chat.participants.find(p => p.id !== senderId);
+    if (recipient) {
+        try {
+            const messageText = savedMessage.text || (savedMessage.imageUrl ? 'Изображение' : '');
+            await this.telegramService.sendNewMessageNotification(recipient, sender, messageText);
+        } catch (e) {
+            this.logger.error(`Failed to send Telegram notification for new message in chat ${chatId}`, e);
+        }
+    }
 
-    // Return the full message object with relations
+
+    // Return the full message object with relations for the WebSocket gateway
     return this.messageRepository.findOne({
         where: { id: savedMessage.id },
         relations: ['sender', 'productContext', 'chat'],
