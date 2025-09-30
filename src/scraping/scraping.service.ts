@@ -50,7 +50,14 @@ export class ScrapingService {
             if(href) preservedAttrs.href = href;
         }
         
-        element[0].attribs = preservedAttrs;
+        const currentAttrs = element.attr();
+        if (currentAttrs) {
+            for (const attrName in currentAttrs) {
+                element.removeAttr(attrName);
+            }
+        }
+    
+        element.attr(preservedAttrs);
       });
 
       const cleanHtml = body.html();
