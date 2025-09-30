@@ -42,7 +42,7 @@ export class ChatsService {
     );
     
     const formattedChats = chatsWithLastMessage.map(chat => {
-        const participant = chat.participants.find(p => p.id !== userId);
+        const participant = chat.participants.find(p => p && p.id !== userId);
         return {
             id: chat.id,
             participant,
@@ -93,7 +93,7 @@ export class ChatsService {
 
       if (!chat) throw new NotFoundException('Chat not found');
 
-      const isParticipant = chat.participants.some(p => p.id === userId);
+      const isParticipant = chat.participants.some(p => p && p.id === userId);
       if (!isParticipant) throw new ForbiddenException('You are not a participant in this chat');
 
       const messages = await this.messageRepository.find({
@@ -102,7 +102,7 @@ export class ChatsService {
           relations: ['sender', 'productContext', 'chat'],
       });
       
-      const participant = chat.participants.find(p => p.id !== userId);
+      const participant = chat.participants.find(p => p && p.id !== userId);
       
       const { participants, ...restOfChat } = chat;
       return { ...restOfChat, messages, participant };
