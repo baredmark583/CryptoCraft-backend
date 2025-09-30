@@ -1,6 +1,6 @@
 import { Injectable, BadRequestException, Logger } from '@nestjs/common';
-import axios from 'axios';
 import * as cheerio from 'cheerio';
+import puppeteer from 'puppeteer';
 
 @Injectable()
 export class ScrapingService {
@@ -11,19 +11,23 @@ export class ScrapingService {
       throw new BadRequestException('URL is required');
     }
 
+    let browser;
     try {
-      this.logger.log(`Fetching URL with axios: ${url}`);
-      const { data: html } = await axios.get(url, {
-        headers: {
-          'User-Agent':
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36',
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
-          'Accept-Language': 'en-US,en;q=0.9',
-          'Accept-Encoding': 'gzip, deflate, br',
-        },
-        timeout: 20000,
+      this.logger.log(`Launching Puppeteer for URL: ${url}`);
+      browser = await puppeteer.launch({
+        args: ['--no-sandbox', '--disable-setuid-sandbox'],
+        headless: true,
       });
-
+      const page = await browser.newPage();
+      await page.setUserAgent(
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36',
+      );
+      
+      this.logger.log(`Navigating to page...`);
+      await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
+      
+      const html = await page.content();
+      
       if (!html) {
         throw new Error('Received empty HTML content from the page.');
       }
@@ -70,11 +74,13 @@ export class ScrapingService {
 
       return { cleanHtml };
     } catch (error) {
-      this.logger.error(`Error scraping ${url} with axios:`, error.message);
-      if (axios.isAxiosError(error)) {
-        throw new BadRequestException(`Failed to get data from the page. Status: ${error.response?.status}. The site may be down or blocking requests.`);
-      }
-      throw new BadRequestException(`Failed to scrape the URL. It may be protected or invalid.`);
+      this.logger.error(`Error scraping ${url} with Puppeteer:`, error.message);
+      throw new BadRequestException(`Failed to scrape the URL. It may be protected, invalid, or timed out.`);
+    } finally {
+        if(browser) {
+            this.logger.log('Closing Puppeteer browser.');
+            await browser.close();
+        }
     }
   }
 }
