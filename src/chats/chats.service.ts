@@ -51,7 +51,11 @@ export class ChatsService {
         };
     });
     
-    return formattedChats.sort((a,b) => (b.lastMessage?.createdAt.getTime() || 0) - (a.lastMessage?.createdAt.getTime() || 0));
+    return formattedChats.sort((a,b) => {
+        const timeA = a.lastMessage?.createdAt?.getTime() || 0;
+        const timeB = b.lastMessage?.createdAt?.getTime() || 0;
+        return timeB - timeA;
+    });
   }
 
   async findOrCreateChat(userId1: string, userId2: string): Promise<Chat> {
