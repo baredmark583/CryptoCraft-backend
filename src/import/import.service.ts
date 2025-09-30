@@ -1,3 +1,4 @@
+
 import { Injectable, Logger } from '@nestjs/common';
 import { ScrapingService } from '../scraping/scraping.service';
 import { AiService } from '../ai/ai.service';
@@ -42,12 +43,13 @@ export class ImportService {
   async processUrl(url: string): Promise<ImportedListingData> {
     this.logger.log(`Starting import process for URL: ${url}`);
 
-    // 1. Scrape the URL to get clean HTML
-    const { cleanHtml } = await this.scrapingService.scrapeUrl(url);
-    this.logger.log(`Scraping successful. HTML length: ${cleanHtml.length}`);
+    // FIX: Destructure 'html' instead of 'cleanHtml' to match the return type of scrapeUrl.
+    // 1. Scrape the URL to get raw HTML
+    const { html } = await this.scrapingService.scrapeUrl(url);
+    this.logger.log(`Scraping successful. HTML length: ${html.length}`);
 
     // 2. Process HTML with AI to extract structured data
-    const aiData = await this.aiService.processImportedHtml(cleanHtml);
+    const aiData = await this.aiService.processImportedHtml(html);
     this.logger.log(`AI processing successful. Title: "${aiData.title}"`);
 
     // 3. Process images: download from original source and upload to Cloudinary
