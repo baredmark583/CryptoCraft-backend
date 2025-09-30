@@ -25,52 +25,64 @@ export class ChatsService {
   ) {}
 
   async getChats(userId: string): Promise<any[]> {
+    this.logger.log(`Fetching chats for user ${userId}`);
     const userChats = await this.chatRepository.find({
         where: { participants: { id: userId } },
         relations: ['participants'],
     });
 
-    const chatsWithLastMessage = await Promise.all(
-        userChats.map(async (chat) => {
-            const lastMessage = await this.messageRepository.findOne({
-                where: { chat: { id: chat.id } },
-                order: { createdAt: 'DESC' },
-                relations: ['sender'],
-            });
-            return { ...chat, lastMessage };
-        })
-    );
-    
-    const formattedChats = chatsWithLastMessage
-      .map(chat => {
-        // Ensure participants array is valid before finding
-        const participant = chat.participants?.find(p => p && p.id !== userId);
+    if (userChats.length === 0) {
+        this.logger.log(`User ${userId} has no chats.`);
+        return [];
+    }
 
-        // If there's no valid participant (e.g., chat with a deleted user), filter out this chat
-        if (!participant || !participant.id) {
-          this.logger.warn(`Chat ${chat.id} has no valid participant other than the current user ${userId}. Filtering it out.`);
-          return null;
+    const chatIds = userChats.map(chat => chat.id);
+
+    // This subquery finds the latest createdAt timestamp for each chat.
+    const lastMessageTimestampSubQuery = this.messageRepository
+        .createQueryBuilder('msg_sub')
+        .select('MAX(msg_sub.createdAt)')
+        .where('msg_sub.chatId = message.chatId');
+
+    // This main query fetches the full message entities that match the latest timestamp for each chat.
+    const lastMessages = await this.messageRepository
+        .createQueryBuilder('message')
+        .leftJoinAndSelect('message.sender', 'sender')
+        .leftJoinAndSelect('message.chat', 'chat') // We need the chat relation to get chatId
+        .where('chat.id IN (:...chatIds)', { chatIds })
+        .andWhere(`message.createdAt = (${lastMessageTimestampSubQuery.getQuery()})`)
+        .getMany();
+
+    // Map messages by their chat ID for easy lookup.
+    const lastMessageMap = new Map<string, Message>();
+    lastMessages.forEach(msg => {
+        if (msg.chat) {
+            lastMessageMap.set(msg.chat.id, msg);
         }
+    });
 
-        return {
-          id: chat.id,
-          participant,
-          messages: [],
-          lastMessage: chat.lastMessage,
-        };
-      })
-      .filter(Boolean); // This removes the nulls
-    
-    // Robust sorting that handles invalid or missing dates
+    const formattedChats = userChats
+        .map(chat => {
+            const participant = chat.participants?.find(p => p && p.id !== userId);
+            if (!participant) {
+                this.logger.warn(`Filtering out chat ${chat.id} due to no valid participant.`);
+                return null;
+            }
+
+            return {
+                id: chat.id,
+                participant,
+                messages: [],
+                lastMessage: lastMessageMap.get(chat.id) || null, // Get from map, or null if no messages
+            };
+        })
+        .filter(Boolean); // Removes nulls
+
+    // Sort by last message timestamp.
     return (formattedChats as any[]).sort((a, b) => {
-      const timeA = a.lastMessage?.createdAt ? new Date(a.lastMessage.createdAt).getTime() : 0;
-      const timeB = b.lastMessage?.createdAt ? new Date(b.lastMessage.createdAt).getTime() : 0;
-      
-      // Handle potential NaN from invalid dates
-      const validTimeA = isNaN(timeA) ? 0 : timeA;
-      const validTimeB = isNaN(timeB) ? 0 : timeB;
-
-      return validTimeB - validTimeA;
+        const timeA = a.lastMessage?.createdAt ? new Date(a.lastMessage.createdAt).getTime() : 0;
+        const timeB = b.lastMessage?.createdAt ? new Date(b.lastMessage.createdAt).getTime() : 0;
+        return (isNaN(timeB) ? 0 : timeB) - (isNaN(timeA) ? 0 : timeA);
     });
   }
 
