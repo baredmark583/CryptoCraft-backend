@@ -63,7 +63,8 @@ export class ChatsService {
 
     const formattedChats = userChats
         .map(chat => {
-            let participant = chat.participants?.find(p => p && p.id !== userId);
+            const otherParticipants = chat.participants?.filter(p => p && p.id !== userId);
+            let participant = otherParticipants?.[0];
             
             // If the other participant is missing (e.g., deleted user), create a placeholder.
             if (!participant) {
@@ -135,7 +136,8 @@ export class ChatsService {
           relations: ['sender', 'productContext', 'chat'],
       });
       
-      let participant = chat.participants.find(p => p && p.id !== userId);
+      const otherParticipants = chat.participants.filter(p => p && p.id !== userId);
+      let participant = otherParticipants?.[0];
       
       // If the other participant is missing, create a placeholder.
       if (!participant) {
