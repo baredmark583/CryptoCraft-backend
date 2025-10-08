@@ -13,7 +13,7 @@ export class AppController {
   @Get('tonconnect-manifest.json')
   getTonConnectManifest() {
     return {
-      url: 'https://cryptocraft-frontend.onrender.com', // Your frontend URL
+      url: 'https://cryptocraft-fronted.onrender.com', // Your frontend URL
       name: 'CryptoCraft Marketplace',
       iconUrl: 'https://www.scnsoft.com/ecommerce/cryptocurrency-ecommerce/cryptocurrency-ecommerce_cover.svg',
     };

@@ -12,7 +12,6 @@ async function bootstrap() {
   console.log('--- DIAGNOSTIC LOG ---');
   console.log(`CLOUDINARY_URL from process.env: [${process.env.CLOUDINARY_URL}]`);
   console.log('--- END OF DIAGNOSTIC LOG ---');
-  // --- END OF DIAGNOSTIC LOG ---
   
   const app = await NestFactory.create(AppModule);
 
@@ -24,8 +23,8 @@ async function bootstrap() {
 
   // Whitelist of allowed origins for CORS.
   const whitelist = [
-    'https://cryptocraft-frontend.onrender.com', // Production Frontend
-    'https://administrator-wusk.onrender.com',  // Production Admin
+    'https://cryptocraft-fronted.onrender.com', // Production Frontend
+    'https://administrator-zoai.onrender.com',  // Production Admin
     'http://localhost:3000', // Local frontend dev
     'http://localhost:5173', // Local admin dev (default Vite)
   ];
