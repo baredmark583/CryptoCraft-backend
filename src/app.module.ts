@@ -23,7 +23,6 @@ import { EventsModule } from './events/events.module';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true, // Makes the ConfigService available throughout the app
-      envFilePath: '.env',
     }),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
