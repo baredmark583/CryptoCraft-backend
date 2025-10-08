@@ -31,18 +31,9 @@ async function bootstrap() {
   }
 
   app.enableCors({
-    origin: (origin, callback) => {
-      // Allow requests with no origin (like mobile apps, curl, Postman)
-      // and requests from whitelisted origins.
-      if (!origin || whitelist.indexOf(origin) !== -1) {
-        callback(null, true);
-      } else {
-        // Log the rejected origin for debugging purposes.
-        console.warn(`CORS: Origin ${origin} rejected. Allowed origins are: ${whitelist.join(', ')}`);
-        callback(new Error('Not allowed by CORS'));
-      }
-    },
+    origin: whitelist,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    allowedHeaders: 'Content-Type, Authorization, Accept',
     credentials: true,
   });
 
