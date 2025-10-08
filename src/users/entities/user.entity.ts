@@ -80,13 +80,6 @@ export class User {
   
   @Column({
     type: 'enum',
-    enum: ['NONE', 'PRO'],
-    default: 'NONE',
-  })
-  verificationLevel: 'NONE' | 'PRO';
-  
-  @Column({
-    type: 'enum',
     enum: UserRole,
     default: UserRole.USER
   })

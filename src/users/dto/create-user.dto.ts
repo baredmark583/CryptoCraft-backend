@@ -39,10 +39,6 @@ export class CreateUserDto {
   @IsOptional()
   commissionOwed?: number;
   
-  @IsEnum(['NONE', 'PRO'])
-  @IsOptional()
-  verificationLevel?: 'NONE' | 'PRO';
-  
   @IsString()
   @IsOptional()
   affiliateId?: string;
