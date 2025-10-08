@@ -6,13 +6,6 @@ import { json, urlencoded } from 'express';
 import { IoAdapter } from '@nestjs/platform-socket.io';
 
 async function bootstrap() {
-  // --- DIAGNOSTIC LOG ---
-  // This will print the exact value the application sees for CLOUDINARY_URL.
-  // Check your Render logs for this output.
-  console.log('--- DIAGNOSTIC LOG ---');
-  console.log(`CLOUDINARY_URL from process.env: [${process.env.CLOUDINARY_URL}]`);
-  console.log('--- END OF DIAGNOSTIC LOG ---');
-  
   const app = await NestFactory.create(AppModule);
 
   app.useWebSocketAdapter(new IoAdapter(app));
