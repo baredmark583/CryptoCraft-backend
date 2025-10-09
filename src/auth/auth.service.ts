@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException, InternalServerErrorException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { UsersService } from '../users/users.service';
 import { JwtService } from '@nestjs/jwt';
 import * as crypto from 'crypto';
@@ -104,5 +104,18 @@ export class AuthService {
       access_token: this.jwtService.sign(payload),
       user: user, // Возвращаем данные пользователя на фронтенд
     };
+  }
+
+  async getMe(userId: string): Promise<User> {
+    try {
+        const user = await this.usersService.findOne(userId);
+        return user;
+    } catch (error) {
+        if (error instanceof NotFoundException) {
+            throw new UnauthorizedException('User from token could not be found.');
+        }
+        // Re-throw other errors
+        throw error;
+    }
   }
 }
