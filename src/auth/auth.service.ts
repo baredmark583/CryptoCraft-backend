@@ -6,6 +6,7 @@ import { ConfigService } from '@nestjs/config';
 import { TelegramUser } from './strategies/telegram.strategy';
 import { User, UserRole } from 'src/users/entities/user.entity';
 import { AdminLoginDto } from './dto/admin-login.dto';
+import { WebLoginDto } from './dto/web-login.dto';
 
 @Injectable()
 export class AuthService {
@@ -51,6 +52,39 @@ export class AuthService {
 
     // Данные достоверны, ищем или создаем пользователя
     return this.usersService.findByTelegramIdOrCreate(user);
+  }
+
+  async validateTelegramWebLogin(dto: WebLoginDto): Promise<User> {
+    const { hash, ...userData } = dto;
+
+    const dataToCheck = Object.keys(userData)
+      .sort()
+      .map(key => (`${key}=${(userData as any)[key]}`))
+      .join('\n');
+
+    const secretKey = crypto.createHash('sha256').update(this.botToken).digest();
+    const hmac = crypto.createHmac('sha256', secretKey).update(dataToCheck).digest('hex');
+
+    if (hmac !== hash) {
+      throw new UnauthorizedException('Invalid Telegram data: web login hash mismatch');
+    }
+    
+    // Check if data is recent (e.g., within 24 hours)
+    const authDate = new Date(dto.auth_date * 1000);
+    if (Date.now() - authDate.getTime() > 86400000) {
+        throw new UnauthorizedException('Telegram data is outdated.');
+    }
+
+    // Data is valid, find or create user
+    const telegramUser: TelegramUser = {
+        id: dto.id,
+        first_name: dto.first_name,
+        last_name: dto.last_name,
+        username: dto.username,
+        photo_url: dto.photo_url,
+    };
+
+    return this.usersService.findByTelegramIdOrCreate(telegramUser);
   }
 
   async validateAdmin(adminLoginDto: AdminLoginDto): Promise<Partial<User>> {
