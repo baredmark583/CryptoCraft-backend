@@ -3,6 +3,7 @@ import { BaseEntity, DecimalTransformer } from '../../database/base.entity';
 import { User } from '../../users/entities/user.entity';
 import { OrderItem } from '../../orders/entities/order-item.entity';
 import { Message } from '../../chats/entities/message.entity';
+import { Review } from '../../reviews/entities/review.entity';
 
 // Типы для jsonb полей, взяты из frontend/types.ts для справки
 export interface VariantAttribute {
@@ -204,6 +205,9 @@ export class Product extends BaseEntity {
   
   @OneToMany(() => Message, (message) => message.productContext)
   messageContexts: Message[];
+
+  @OneToMany(() => Review, (review) => review.product)
+  reviews: Review[];
 
   // Moderation
   @Column({

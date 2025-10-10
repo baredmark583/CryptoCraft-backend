@@ -22,6 +22,8 @@ import { WorkshopModule } from './workshop/workshop.module';
 import { CollectionsModule } from './collections/collections.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { PromoCodesModule } from './promocodes/promocodes.module';
+import { ReviewsModule } from './reviews/reviews.module';
+import { ForumModule } from './forum/forum.module';
 
 @Module({
   imports: [
@@ -60,6 +62,8 @@ import { PromoCodesModule } from './promocodes/promocodes.module';
     CollectionsModule,
     NotificationsModule,
     PromoCodesModule,
+    ReviewsModule,
+    ForumModule,
   ],
   controllers: [AppController],
   providers: [AppService],
