@@ -25,7 +25,7 @@ import { ImportModule } from './import/import.module';
 import { ScrapingModule } from './scraping/scraping.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { EventsModule } from './events/events.module';
-import { PromocodesModule } from './promocodes/promocodes.module';
+import { PromoCodesModule } from './promocodes/promocodes.module';
 
 @Module({
   imports: [
@@ -65,7 +65,7 @@ import { PromocodesModule } from './promocodes/promocodes.module';
     ScrapingModule,
     DashboardModule,
     EventsModule,
-    PromocodesModule,
+    PromoCodesModule,
   ],
   controllers: [AppController],
   providers: [AppService],
