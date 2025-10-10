@@ -1,17 +1,17 @@
-import { Entity, Column, OneToMany, PrimaryGeneratedColumn, CreateDateColumn, UpdateDateColumn, ManyToMany } from 'typeorm';
+import { Entity, Column, OneToMany, ManyToMany } from 'typeorm';
+import { BaseEntity, DecimalTransformer } from '../../database/base.entity';
 import { Product } from '../../products/entities/product.entity';
 import { Order } from '../../orders/entities/order.entity';
-import { DecimalTransformer } from '../../database/base.entity';
+import { Review } from '../../reviews/entities/review.entity';
 import { Chat } from '../../chats/entities/chat.entity';
 import { Message } from '../../chats/entities/message.entity';
 import { Collection } from '../../collections/entities/collection.entity';
 import { WorkshopPost } from '../../workshop/entities/workshop-post.entity';
-import { WorkshopComment } from '../../workshop/entities/workshop-comment.entity';
-import { Review } from '../../reviews/entities/review.entity';
 import { ForumThread } from '../../forum/entities/forum-thread.entity';
 import { ForumPost } from '../../forum/entities/forum-post.entity';
+import { Notification } from '../../notifications/entities/notification.entity';
+import { PromoCode } from '../../promocodes/entities/promocode.entity';
 
-// Define jsonb types directly here as they are simple
 export interface ShippingAddress {
   city: string;
   postOffice: string;
@@ -24,39 +24,28 @@ export interface BusinessInfo {
 }
 
 export enum UserRole {
-    USER = 'USER',
-    MODERATOR = 'MODERATOR',
-    SUPER_ADMIN = 'SUPER_ADMIN',
+  USER = 'USER',
+  MODERATOR = 'MODERATOR',
+  SUPER_ADMIN = 'SUPER_ADMIN',
 }
 
 @Entity('users')
-export class User {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
-  
-  @Column({
-    type: 'bigint',
-    unique: true,
-    nullable: true,
-    transformer: {
-      from: (val: string | null) => (val ? parseInt(val, 10) : null),
-      to: (val: number | null) => val,
-    },
-  })
-  telegramId?: number;
+export class User extends BaseEntity {
+  @Column({ type: 'bigint', unique: true, nullable: true })
+  telegramId: number;
 
   @Column()
   name: string;
-  
+
   @Column({ unique: true, nullable: true })
   email?: string;
 
-  @Column()
+  @Column({ default: 'default_avatar_url' })
   avatarUrl: string;
 
   @Column({ nullable: true })
   headerImageUrl?: string;
-  
+
   @Column('decimal', {
     precision: 2,
     scale: 1,
@@ -64,10 +53,10 @@ export class User {
     transformer: new DecimalTransformer(),
   })
   rating: number;
-  
-  @Column('simple-array', { default: '' })
+
+  @Column('simple-array', { default: [] })
   following: string[];
-  
+
   @Column('decimal', {
     precision: 10,
     scale: 2,
@@ -83,32 +72,39 @@ export class User {
     transformer: new DecimalTransformer(),
   })
   commissionOwed: number;
+
+  @Column({
+    type: 'enum',
+    enum: ['NONE', 'PRO'],
+    default: 'NONE',
+  })
+  verificationLevel: 'NONE' | 'PRO';
   
   @Column({
     type: 'enum',
     enum: UserRole,
-    default: UserRole.USER
+    default: UserRole.USER,
   })
   role: UserRole;
 
-  @Column({ nullable: true })
+  @Column({ nullable: true, unique: true })
   affiliateId?: string;
 
   @Column({ nullable: true })
   phoneNumber?: string;
-  
+
   @Column('jsonb', { nullable: true })
   defaultShippingAddress?: ShippingAddress;
-  
+
   @Column('jsonb', { nullable: true })
   businessInfo?: BusinessInfo;
-  
-  @Column({ nullable: true, unique: true })
+
+  @Column({ nullable: true })
   tonWalletAddress?: string;
 
   @Column({ nullable: true })
   paymentCard?: string;
-
+  
   @OneToMany(() => Product, (product) => product.seller)
   products: Product[];
 
@@ -117,10 +113,13 @@ export class User {
 
   @OneToMany(() => Order, (order) => order.seller)
   sales: Order[];
-
+  
+  @OneToMany(() => Review, (review) => review.author)
+  reviews: Review[];
+  
   @ManyToMany(() => Chat, (chat) => chat.participants)
   chats: Chat[];
-
+  
   @OneToMany(() => Message, (message) => message.sender)
   sentMessages: Message[];
 
@@ -129,22 +128,16 @@ export class User {
 
   @OneToMany(() => WorkshopPost, (post) => post.seller)
   workshopPosts: WorkshopPost[];
-
-  @OneToMany(() => WorkshopComment, (comment) => comment.author)
-  workshopComments: WorkshopComment[];
-
-  @OneToMany(() => Review, (review) => review.author)
-  reviews: Review[];
-
-  @OneToMany(() => ForumThread, thread => thread.author)
+  
+  @OneToMany(() => ForumThread, (thread) => thread.author)
   forumThreads: ForumThread[];
-
-  @OneToMany(() => ForumPost, post => post.author)
+  
+  @OneToMany(() => ForumPost, (post) => post.author)
   forumPosts: ForumPost[];
 
-  @CreateDateColumn()
-  createdAt: Date;
+  @OneToMany(() => Notification, (notification) => notification.user)
+  notifications: Notification[];
 
-  @UpdateDateColumn()
-  updatedAt: Date;
+  @OneToMany(() => PromoCode, (promoCode) => promoCode.seller)
+  promoCodes: PromoCode[];
 }

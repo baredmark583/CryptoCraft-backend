@@ -73,7 +73,8 @@ export class AiService {
   async editImage(imageBase64: string, mimeType: string, prompt: string): Promise<{ base64Image: string }> {
      try {
         const response = await this.ai.models.generateContent({
-            model: 'gemini-2.5-flash-image-preview',
+            // FIX: Updated model name to 'gemini-2.5-flash-image' as per guidelines.
+            model: 'gemini-2.5-flash-image',
             contents: { parts: [{ inlineData: { data: imageBase64, mimeType } }, { text: prompt }] },
             config: { responseModalities: [Modality.IMAGE, Modality.TEXT] },
         });

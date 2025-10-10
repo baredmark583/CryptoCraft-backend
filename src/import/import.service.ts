@@ -1,4 +1,5 @@
 
+
 import { Injectable, Logger } from '@nestjs/common';
 import { ScrapingService } from '../scraping/scraping.service';
 import { AiService } from '../ai/ai.service';

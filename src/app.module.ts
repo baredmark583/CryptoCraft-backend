@@ -1,69 +1,71 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
+import { UsersModule } from './users/users.module';
 import { ProductsModule } from './products/products.module';
 import { OrdersModule } from './orders/orders.module';
+import { ChatsModule } from './chats/chats.module';
 import { AiModule } from './ai/ai.module';
 import { UploadModule } from './upload/upload.module';
 import { CategoriesModule } from './categories/categories.module';
-import { IconsModule } from './icons/icons.module';
-import { SettingsModule } from './settings/settings.module';
-import { DashboardModule } from './dashboard/dashboard.module';
-import { DisputesModule } from './disputes/disputes.module';
-import { TransactionsModule } from './transactions/transactions.module';
-import { TelegramModule } from './telegram/telegram.module';
-import { ChatsModule } from './chats/chats.module';
-import { EventsModule } from './events/events.module';
+import { ReviewsModule } from './reviews/reviews.module';
 import { WorkshopModule } from './workshop/workshop.module';
 import { CollectionsModule } from './collections/collections.module';
 import { NotificationsModule } from './notifications/notifications.module';
-import { PromoCodesModule } from './promocodes/promocodes.module';
-import { ReviewsModule } from './reviews/reviews.module';
 import { ForumModule } from './forum/forum.module';
+import { LivestreamsModule } from './livestreams/livestreams.module';
+import { GovernanceModule } from './governance/governance.module';
+import { DisputesModule } from './disputes/disputes.module';
+import { TransactionsModule } from './transactions/transactions.module';
+import { SettingsModule } from './settings/settings.module';
+import { ImportModule } from './import/import.module';
+import { ScrapingModule } from './scraping/scraping.module';
+import { DashboardModule } from './dashboard/dashboard.module';
+import { EventsModule } from './events/events.module';
+import { PromocodesModule } from './promocodes/promocodes.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
-      isGlobal: true, // Makes the ConfigService available throughout the app
+      isGlobal: true,
     }),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
+      inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
         type: 'postgres',
         url: configService.get('DATABASE_URL'),
-        autoLoadEntities: true,
-        synchronize: true, // In production, consider using migrations instead
-        ssl: {
-          rejectUnauthorized: false,
-        }
+        entities: [__dirname + '/../**/*.entity{.ts,.js}'],
+        synchronize: true, // Be careful with this in production
+        ssl: configService.get('NODE_ENV') === 'production' ? { rejectUnauthorized: false } : false,
       }),
-      inject: [ConfigService],
     }),
-    UsersModule,
     AuthModule,
+    UsersModule,
     ProductsModule,
     OrdersModule,
+    ChatsModule,
     AiModule,
     UploadModule,
     CategoriesModule,
-    IconsModule,
-    SettingsModule,
-    DashboardModule,
-    DisputesModule,
-    TransactionsModule,
-    TelegramModule,
-    ChatsModule,
-    EventsModule,
+    ReviewsModule,
     WorkshopModule,
     CollectionsModule,
     NotificationsModule,
-    PromoCodesModule,
-    ReviewsModule,
     ForumModule,
+    LivestreamsModule,
+    GovernanceModule,
+    DisputesModule,
+    TransactionsModule,
+    SettingsModule,
+    ImportModule,
+    ScrapingModule,
+    DashboardModule,
+    EventsModule,
+    PromocodesModule,
   ],
   controllers: [AppController],
   providers: [AppService],
