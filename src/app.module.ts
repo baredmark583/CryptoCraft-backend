@@ -26,6 +26,7 @@ import { ScrapingModule } from './scraping/scraping.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { EventsModule } from './events/events.module';
 import { PromoCodesModule } from './promocodes/promocodes.module';
+import * as pg from 'pg';
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { PromoCodesModule } from './promocodes/promocodes.module';
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
         type: 'postgres',
+        driver: pg,
         url: configService.get('DATABASE_URL'),
         entities: [__dirname + '/../**/*.entity{.ts,.js}'],
         synchronize: true, // Be careful with this in production
