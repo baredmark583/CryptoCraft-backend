@@ -4,6 +4,9 @@ import { Order } from '../../orders/entities/order.entity';
 import { DecimalTransformer } from '../../database/base.entity';
 import { Chat } from '../../chats/entities/chat.entity';
 import { Message } from '../../chats/entities/message.entity';
+import { Collection } from '../../collections/entities/collection.entity';
+import { WorkshopPost } from '../../workshop/entities/workshop-post.entity';
+import { WorkshopComment } from '../../workshop/entities/workshop-comment.entity';
 
 // Define jsonb types directly here as they are simple
 export interface ShippingAddress {
@@ -117,6 +120,15 @@ export class User {
 
   @OneToMany(() => Message, (message) => message.sender)
   sentMessages: Message[];
+
+  @OneToMany(() => Collection, (collection) => collection.user)
+  collections: Collection[];
+
+  @OneToMany(() => WorkshopPost, (post) => post.seller)
+  workshopPosts: WorkshopPost[];
+
+  @OneToMany(() => WorkshopComment, (comment) => comment.author)
+  workshopComments: WorkshopComment[];
 
   @CreateDateColumn()
   createdAt: Date;

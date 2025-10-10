@@ -18,6 +18,10 @@ import { TransactionsModule } from './transactions/transactions.module';
 import { TelegramModule } from './telegram/telegram.module';
 import { ChatsModule } from './chats/chats.module';
 import { EventsModule } from './events/events.module';
+import { WorkshopModule } from './workshop/workshop.module';
+import { CollectionsModule } from './collections/collections.module';
+import { NotificationsModule } from './notifications/notifications.module';
+import { PromoCodesModule } from './promocodes/promocodes.module';
 
 @Module({
   imports: [
@@ -52,6 +56,10 @@ import { EventsModule } from './events/events.module';
     TelegramModule,
     ChatsModule,
     EventsModule,
+    WorkshopModule,
+    CollectionsModule,
+    NotificationsModule,
+    PromoCodesModule,
   ],
   controllers: [AppController],
   providers: [AppService],
