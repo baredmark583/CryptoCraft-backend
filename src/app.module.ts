@@ -26,6 +26,7 @@ import { ScrapingModule } from './scraping/scraping.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { EventsModule } from './events/events.module';
 import { PromoCodesModule } from './promocodes/promocodes.module';
+// FIX: Changed CommonJS import `require('pg')` to ES module `import * as pg from 'pg'` to resolve module format error.
 import * as pg from 'pg';
 
 @Module({
