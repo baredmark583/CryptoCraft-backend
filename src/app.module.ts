@@ -26,8 +26,7 @@ import { ScrapingModule } from './scraping/scraping.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { EventsModule } from './events/events.module';
 import { PromoCodesModule } from './promocodes/promocodes.module';
-// FIX: Use ES Module namespace import for the 'pg' driver to resolve module format error.
-import * as pg from 'pg';
+import { IconsModule } from './icons/icons.module';
 
 @Module({
   imports: [
@@ -39,7 +38,6 @@ import * as pg from 'pg';
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
         type: 'postgres',
-        driver: pg,
         url: configService.get('DATABASE_URL'),
         entities: [__dirname + '/../**/*.entity{.ts,.js}'],
         synchronize: true, // Be careful with this in production
@@ -69,6 +67,7 @@ import * as pg from 'pg';
     DashboardModule,
     EventsModule,
     PromoCodesModule,
+    IconsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
