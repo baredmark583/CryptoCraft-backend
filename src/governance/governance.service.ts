@@ -32,11 +32,25 @@ export class GovernanceService {
   }
 
   async createProposal(proposerId: string, createDto: CreateProposalDto) {
-    const proposer = await this.userRepository.findOneBy({ id: proposerId });
-    if (!proposer) throw new NotFoundException('Proposer not found');
-    if (proposer.verificationLevel !== 'PRO') {
-        throw new ForbiddenException('Only PRO users can create proposals.');
+    let proposer: User;
+
+    if (proposerId === 'admin-user') {
+      // Find or create a 'Platform' user for admin-initiated proposals
+      proposer = await this.userRepository.findOne({ where: { role: UserRole.SUPER_ADMIN, name: 'CryptoCraft Platform' } });
+      if (!proposer) {
+        proposer = this.userRepository.create({
+          name: 'CryptoCraft Platform',
+          role: UserRole.SUPER_ADMIN,
+          email: 'platform@cryptocraft.app',
+          avatarUrl: 'https://www.scnsoft.com/ecommerce/cryptocurrency-ecommerce/cryptocurrency-ecommerce_cover.svg'
+        });
+        await this.userRepository.save(proposer);
+      }
+    } else {
+      proposer = await this.userRepository.findOneBy({ id: proposerId });
     }
+
+    if (!proposer) throw new NotFoundException('Proposer could not be determined.');
 
     const proposal = this.proposalRepository.create({ ...createDto, proposer });
     return this.proposalRepository.save(proposal);
@@ -44,7 +58,6 @@ export class GovernanceService {
 
   async findAllProposals() {
     const proposals = await this.proposalRepository.find({
-      where: { status: 'ACTIVE' },
       order: { createdAt: 'DESC' },
       relations: ['proposer'],
     });
@@ -72,9 +85,6 @@ export class GovernanceService {
     const voter = await this.userRepository.findOneBy({ id: voterId });
     if (!voter) throw new NotFoundException('Voter not found');
     
-    if (voter.verificationLevel !== 'PRO' && voter.role !== UserRole.SUPER_ADMIN) {
-        throw new ForbiddenException('Only PRO users and Admins can vote.');
-    }
     if (proposal.endsAt < Date.now()) {
         throw new BadRequestException('Voting for this proposal has ended.');
     }

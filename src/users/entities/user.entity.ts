@@ -72,13 +72,6 @@ export class User extends BaseEntity {
     transformer: new DecimalTransformer(),
   })
   commissionOwed: number;
-
-  @Column({
-    type: 'enum',
-    enum: ['NONE', 'PRO'],
-    default: 'NONE',
-  })
-  verificationLevel: 'NONE' | 'PRO';
   
   @Column({
     type: 'enum',
