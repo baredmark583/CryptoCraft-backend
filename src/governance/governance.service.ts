@@ -6,6 +6,7 @@ import { Vote } from './entities/vote.entity';
 import { User, UserRole } from '../users/entities/user.entity';
 import { CreateProposalDto } from './dto/create-proposal.dto';
 import { CastVoteDto } from './dto/cast-vote.dto';
+import { UpdateProposalDto } from './dto/update-proposal.dto';
 
 @Injectable()
 export class GovernanceService {
@@ -21,7 +22,7 @@ export class GovernanceService {
   private async mapProposal(proposal: Proposal) {
     const votesFor = await this.voteRepository.count({ where: { proposal: { id: proposal.id }, choice: 'FOR' } });
     const votesAgainst = await this.voteRepository.count({ where: { proposal: { id: proposal.id }, choice: 'AGAINST' } });
-    const votes = await this.voteRepository.find({ where: { proposal: { id: proposal.id } } });
+    const votes = await this.voteRepository.find({ where: { proposal: { id: proposal.id } }, relations: ['voter'] });
     const voters = votes.reduce((acc, vote) => {
         acc[vote.voter.id] = vote.choice;
         return acc;
@@ -42,6 +43,15 @@ export class GovernanceService {
   }
 
   async findAllProposals() {
+    const proposals = await this.proposalRepository.find({
+      where: { status: 'ACTIVE' },
+      order: { createdAt: 'DESC' },
+      relations: ['proposer'],
+    });
+    return Promise.all(proposals.map(p => this.mapProposal(p)));
+  }
+
+  async findAllForAdmin() {
     const proposals = await this.proposalRepository.find({
       order: { createdAt: 'DESC' },
       relations: ['proposer'],
@@ -81,5 +91,22 @@ export class GovernanceService {
     });
     await this.voteRepository.save(vote);
     return this.findProposalById(proposalId);
+  }
+
+  async update(id: string, updateDto: UpdateProposalDto) {
+    const proposal = await this.proposalRepository.preload({ id, ...updateDto });
+    if (!proposal) {
+        throw new NotFoundException(`Proposal with ID ${id} not found.`);
+    }
+    const savedProposal = await this.proposalRepository.save(proposal);
+    return this.mapProposal(savedProposal);
+  }
+
+  async remove(id: string): Promise<{ success: boolean }> {
+      const result = await this.proposalRepository.delete(id);
+      if (result.affected === 0) {
+          throw new NotFoundException(`Proposal with ID ${id} not found.`);
+      }
+      return { success: true };
   }
 }
