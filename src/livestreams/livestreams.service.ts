@@ -1,10 +1,12 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Livestream } from './entities/livestream.entity';
-import { User } from '../users/entities/user.entity';
+import { User, UserRole } from '../users/entities/user.entity';
 import { Product } from '../products/entities/product.entity';
 import { CreateLivestreamDto } from './dto/create-livestream.dto';
+import { ConfigService } from '@nestjs/config';
+import { AccessToken } from 'livekit-server-sdk';
 
 @Injectable()
 export class LivestreamsService {
@@ -15,6 +17,7 @@ export class LivestreamsService {
     private readonly userRepository: Repository<User>,
     @InjectRepository(Product)
     private readonly productRepository: Repository<Product>,
+    private readonly configService: ConfigService,
   ) {}
 
   async create(sellerId: string, createDto: CreateLivestreamDto): Promise<Livestream> {
@@ -50,5 +53,54 @@ export class LivestreamsService {
       throw new NotFoundException(`Livestream with ID "${id}" not found`);
     }
     return livestream;
+  }
+
+  async generateJoinToken(streamId: string, userId: string, userName: string) {
+    const stream = await this.livestreamRepository.findOne({
+      where: { id: streamId },
+      relations: ['seller'],
+    });
+
+    if (!stream) {
+      throw new NotFoundException(`Livestream with ID "${streamId}" not found`);
+    }
+
+    const isSeller = stream.seller.id === userId;
+
+    const apiKey = this.configService.get<string>('LIVEKIT_API_KEY');
+    const apiSecret = this.configService.get<string>('LIVEKIT_API_SECRET');
+    const roomName = stream.id;
+
+    if (!apiKey || !apiSecret) {
+      throw new Error('LiveKit API key or secret is not configured.');
+    }
+
+    const at = new AccessToken(apiKey, apiSecret, {
+      identity: userId,
+      name: userName,
+    });
+
+    at.addGrant({
+      room: roomName,
+      roomJoin: true,
+      canPublish: isSeller,
+      canPublishData: true,
+      canSubscribe: true,
+    });
+    
+    return { token: at.toJwt() };
+  }
+
+  async endStream(id: string, userId: string, userRole: UserRole): Promise<Livestream> {
+    const livestream = await this.findOne(id);
+    const isSeller = livestream.seller.id === userId;
+    const isModerator = userRole === UserRole.SUPER_ADMIN || userRole === UserRole.MODERATOR;
+
+    if (!isSeller && !isModerator) {
+      throw new ForbiddenException('You do not have permission to end this stream.');
+    }
+
+    livestream.status = 'ENDED';
+    return this.livestreamRepository.save(livestream);
   }
 }

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, UseGuards, Req, ParseUUIDPipe } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, UseGuards, Req, ParseUUIDPipe, Patch } from '@nestjs/common';
 import { LivestreamsService } from './livestreams.service';
 import { CreateLivestreamDto } from './dto/create-livestream.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -21,5 +21,19 @@ export class LivestreamsController {
   @Get(':id')
   findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.livestreamsService.findOne(id);
+  }
+  
+  @UseGuards(JwtAuthGuard)
+  @Post(':id/token')
+  generateToken(@Req() req, @Param('id', ParseUUIDPipe) id: string) {
+    const userId = req.user.userId;
+    const userName = req.user.username;
+    return this.livestreamsService.generateJoinToken(id, userId, userName);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch(':id/end')
+  endStream(@Req() req, @Param('id', ParseUUIDPipe) id: string) {
+    return this.livestreamsService.endStream(id, req.user.userId, req.user.role);
   }
 }
