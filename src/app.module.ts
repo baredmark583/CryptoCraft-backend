@@ -1,3 +1,4 @@
+
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
@@ -39,7 +40,8 @@ import { IconsModule } from './icons/icons.module';
       useFactory: (configService: ConfigService) => ({
         type: 'postgres',
         url: configService.get('DATABASE_URL'),
-        entities: [__dirname + '/../**/*.entity{.ts,.js}'],
+        // FIX: Replaced explicit entity path with `autoLoadEntities: true` to resolve `__dirname` error and simplify entity loading.
+        autoLoadEntities: true,
         synchronize: true, // Be careful with this in production
         ssl: configService.get('NODE_ENV') === 'production' ? { rejectUnauthorized: false } : false,
       }),

@@ -20,4 +20,3 @@ import { PromoCodesModule } from 'src/promocodes/promocodes.module';
   exports: [NotificationsService],
 })
 export class NotificationsModule {}
-
