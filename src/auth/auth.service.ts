@@ -99,7 +99,12 @@ export class AuthService {
   }
 
   async login(user: Partial<User>) {
-    const payload = { sub: user.id, username: user.name, role: user.role || UserRole.USER };
+    const payload = {
+      sub: user.id,
+      username: user.name,
+      role: user.role || UserRole.USER,
+      avatarUrl: (user as User).avatarUrl,
+    };
     return {
       access_token: this.jwtService.sign(payload),
       user: user, // Возвращаем данные пользователя на фронтенд

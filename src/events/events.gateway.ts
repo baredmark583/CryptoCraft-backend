@@ -40,12 +40,12 @@ export class EventsGateway implements OnGatewayInit, OnGatewayConnection, OnGate
     this.logger.log(`Client connected: ${client.id}`);
     try {
       const token = client.handshake.query.token as string;
-      if (!token) {
+      if (!token || token === 'null' || token === 'undefined') {
         throw new Error('Authentication token not provided');
       }
       const payload = this.jwtService.verify(token);
       // We store the whole decoded payload which includes the role
-      client.data.user = payload; 
+      client.data.user = payload;
     } catch (e) {
       this.logger.log(`Authentication failed for client ${client.id}: ${e.message}. Treating as guest.`);
       // Assign a guest identity instead of disconnecting
@@ -73,27 +73,42 @@ export class EventsGateway implements OnGatewayInit, OnGatewayConnection, OnGate
   async handleMessage(client: Socket, payload: { chatId: string; message: CreateMessageDto }): Promise<void> {
     try {
       const userId = client.data.user.sub;
-      const isLiveStreamChat = !payload.chatId.includes('-'); // Simple check: UUIDs for chats have dashes, stream IDs might not. This is a heuristic.
-      
-      let message;
-      // Only save to DB if it's a regular chat, not a live stream
-      if (isLiveStreamChat) {
-         message = {
-            id: `msg-live-${Date.now()}`,
-            text: payload.message.text,
-            imageUrl: payload.message.imageUrl,
-            sender: { id: userId, name: client.data.user.username }, // Send partial user data
-            chat: { id: payload.chatId },
-            createdAt: new Date(),
-         };
-      } else {
-        message = await this.chatsService.createMessage(payload.chatId, userId, payload.message);
+      if (userId.startsWith('guest:')) {
+        throw new WsException('Guests cannot send messages in private chats.');
       }
-      
+      const message = await this.chatsService.createMessage(payload.chatId, userId, payload.message);
       this.server.to(payload.chatId).emit('newMessage', message);
-    } catch(error) {
-        this.logger.error(`Error handling message: ${error.message}`);
-        client.emit('error', 'Failed to send message.');
+    } catch (error) {
+      this.logger.error(`Error handling message: ${error.message}`);
+      client.emit('error', new WsException('Failed to send message.'));
+    }
+  }
+
+  @SubscribeMessage('sendStreamMessage')
+  handleStreamMessage(client: Socket, payload: { streamId: string; message: { text?: string; imageUrl?: string } }): void {
+    try {
+      const user = client.data.user;
+      if (!user) {
+        throw new WsException('No user data on socket.');
+      }
+
+      const message = {
+        id: `msg-live-${Date.now()}-${Math.random()}`,
+        text: payload.message.text,
+        imageUrl: payload.message.imageUrl,
+        sender: {
+          id: user.sub,
+          name: user.username,
+          avatarUrl: user.avatarUrl,
+        },
+        chat: { id: payload.streamId },
+        timestamp: Date.now(),
+      };
+
+      this.server.to(payload.streamId).emit('newMessage', message);
+    } catch (error) {
+      this.logger.error(`Error handling stream message: ${error.message}`);
+      client.emit('error', new WsException('Failed to send stream message.'));
     }
   }
 
@@ -111,20 +126,32 @@ export class EventsGateway implements OnGatewayInit, OnGatewayConnection, OnGate
       this.logger.warn(`User ${user.sub} attempted to delete a message without permission.`);
       return;
     }
-    
+
     this.logger.log(`Moderator ${user.sub} deleting message ${payload.messageId} from room ${payload.roomId}`);
     this.server.to(payload.roomId).emit('messageDeleted', { messageId: payload.messageId });
   }
-  
+
+  @SubscribeMessage('joinStreamRoom')
+  handleJoinStreamRoom(client: Socket, streamId: string): void {
+    client.join(streamId);
+    this.logger.log(`Client ${client.id} (user: ${client.data.user?.sub}) joined stream room: ${streamId}`);
+  }
+
+  @SubscribeMessage('leaveStreamRoom')
+  handleLeaveStreamRoom(client: Socket, streamId: string): void {
+    client.leave(streamId);
+    this.logger.log(`Client ${client.id} left stream room: ${streamId}`);
+  }
+
   @SubscribeMessage('streamEndedBroadcast')
   handleStreamEnded(client: Socket, payload: { roomId: string }): void {
-      const user = client.data.user;
-       if (user.role !== UserRole.SUPER_ADMIN && user.role !== UserRole.MODERATOR) {
-        this.logger.warn(`User ${user.sub} attempted to broadcast stream end without permission.`);
-        return;
-      }
-      this.logger.log(`Moderator ${user.sub} ending stream for room ${payload.roomId}`);
-      // Broadcast to everyone in the room *including the sender*
-      this.server.to(payload.roomId).emit('streamEnded');
+    const user = client.data.user;
+    if (user.role !== UserRole.SUPER_ADMIN && user.role !== UserRole.MODERATOR) {
+      this.logger.warn(`User ${user.sub} attempted to broadcast stream end without permission.`);
+      return;
+    }
+    this.logger.log(`Moderator ${user.sub} ending stream for room ${payload.roomId}`);
+    // Broadcast to everyone in the room *including the sender*
+    this.server.to(payload.roomId).emit('streamEnded');
   }
 }
