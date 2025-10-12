@@ -2,10 +2,14 @@ import { Controller, Get, Post, Body, Param, UseGuards, Req, ParseUUIDPipe, Patc
 import { LivestreamsService } from './livestreams.service';
 import { CreateLivestreamDto } from './dto/create-livestream.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { JwtService } from '@nestjs/jwt';
 
 @Controller('livestreams')
 export class LivestreamsController {
-  constructor(private readonly livestreamsService: LivestreamsService) {}
+  constructor(
+    private readonly livestreamsService: LivestreamsService,
+    private readonly jwtService: JwtService,
+    ) {}
 
   @UseGuards(JwtAuthGuard)
   @Post()
@@ -23,12 +27,22 @@ export class LivestreamsController {
     return this.livestreamsService.findOne(id);
   }
   
-  @UseGuards(JwtAuthGuard)
   @Post(':id/token')
   async generateToken(@Req() req, @Param('id', ParseUUIDPipe) id: string) {
-    const userId = req.user.userId;
-    const userName = req.user.username;
-    const token = await this.livestreamsService.generateJoinToken(id, userId, userName);
+    let user = null;
+    const authHeader = req.headers.authorization;
+    if (authHeader) {
+        const token = authHeader.split(' ')[1];
+        try {
+            const payload = this.jwtService.verify(token);
+            user = { userId: payload.sub, username: payload.username };
+        } catch (e) {
+            // Invalid token, treat as guest
+            user = null;
+        }
+    }
+    
+    const token = await this.livestreamsService.generateJoinToken(id, user);
     return { token };
   }
 

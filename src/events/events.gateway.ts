@@ -41,15 +41,19 @@ export class EventsGateway implements OnGatewayInit, OnGatewayConnection, OnGate
     try {
       const token = client.handshake.query.token as string;
       if (!token) {
-        throw new WsException('Authentication token not provided');
+        throw new Error('Authentication token not provided');
       }
       const payload = this.jwtService.verify(token);
       // We store the whole decoded payload which includes the role
       client.data.user = payload; 
     } catch (e) {
-      this.logger.error(`Authentication error: ${e.message}`);
-      client.emit('error', 'Authentication failed');
-      client.disconnect();
+      this.logger.log(`Authentication failed for client ${client.id}: ${e.message}. Treating as guest.`);
+      // Assign a guest identity instead of disconnecting
+      client.data.user = {
+        sub: `guest:${client.id}`,
+        username: `Guest#${Math.floor(Math.random() * 1000)}`,
+        role: 'GUEST', // Custom role for identification
+      };
     }
   }
 

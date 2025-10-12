@@ -24,4 +24,8 @@ export class CreateLivestreamDto {
   @IsOptional()
   @IsString()
   welcomeMessage?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  isPromoted?: boolean;
 }

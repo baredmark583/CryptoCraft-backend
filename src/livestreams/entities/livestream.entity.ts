@@ -28,4 +28,13 @@ export class Livestream extends BaseEntity {
 
   @Column({ nullable: true })
   welcomeMessage?: string;
+
+  @Column({ type: 'int', default: 0 })
+  likes: number;
+
+  @Column({ type: 'int', default: 0 })
+  viewerCount: number;
+
+  @Column({ default: false })
+  isPromoted: boolean;
 }

@@ -55,7 +55,7 @@ export class LivestreamsService {
     return livestream;
   }
 
-  async generateJoinToken(streamId: string, userId: string, userName: string): Promise<string> {
+  async generateJoinToken(streamId: string, user: { userId: string, username: string } | null): Promise<string> {
     const stream = await this.livestreamRepository.findOne({
       where: { id: streamId },
       relations: ['seller'],
@@ -65,7 +65,9 @@ export class LivestreamsService {
       throw new NotFoundException(`Livestream with ID "${streamId}" not found`);
     }
 
-    const isSeller = stream.seller.id === userId;
+    const isSeller = user ? stream.seller.id === user.userId : false;
+    const identity = user ? user.userId : `guest-${Date.now()}`;
+    const name = user ? user.username : `Guest#${Math.floor(Math.random() * 1000)}`;
 
     const apiKey = this.configService.get<string>('LIVEKIT_API_KEY');
     const apiSecret = this.configService.get<string>('LIVEKIT_API_SECRET');
@@ -76,8 +78,8 @@ export class LivestreamsService {
     }
 
     const at = new AccessToken(apiKey, apiSecret, {
-      identity: userId,
-      name: userName,
+      identity: identity,
+      name: name,
     });
 
     at.addGrant({
