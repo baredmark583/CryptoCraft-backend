@@ -25,10 +25,11 @@ export class LivestreamsController {
   
   @UseGuards(JwtAuthGuard)
   @Post(':id/token')
-  generateToken(@Req() req, @Param('id', ParseUUIDPipe) id: string) {
+  async generateToken(@Req() req, @Param('id', ParseUUIDPipe) id: string) {
     const userId = req.user.userId;
     const userName = req.user.username;
-    return this.livestreamsService.generateJoinToken(id, userId, userName);
+    const token = await this.livestreamsService.generateJoinToken(id, userId, userName);
+    return { token };
   }
 
   @UseGuards(JwtAuthGuard)

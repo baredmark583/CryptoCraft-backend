@@ -55,7 +55,7 @@ export class LivestreamsService {
     return livestream;
   }
 
-  async generateJoinToken(streamId: string, userId: string, userName: string) {
+  async generateJoinToken(streamId: string, userId: string, userName: string): Promise<string> {
     const stream = await this.livestreamRepository.findOne({
       where: { id: streamId },
       relations: ['seller'],
@@ -88,7 +88,7 @@ export class LivestreamsService {
       canSubscribe: true,
     });
     
-    return { token: at.toJwt() };
+    return at.toJwt();
   }
 
   async endStream(id: string, userId: string, userRole: UserRole): Promise<Livestream> {
