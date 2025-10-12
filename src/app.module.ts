@@ -29,6 +29,7 @@ import { DashboardModule } from './dashboard/dashboard.module';
 import { EventsModule } from './events/events.module';
 import { PromoCodesModule } from './promocodes/promocodes.module';
 import { IconsModule } from './icons/icons.module';
+import { NovaPoshtaModule } from './nova-poshta/nova-poshta.module';
 
 @Module({
   imports: [
@@ -71,6 +72,7 @@ import { IconsModule } from './icons/icons.module';
     EventsModule,
     PromoCodesModule,
     IconsModule,
+    NovaPoshtaModule,
   ],
   controllers: [AppController],
   providers: [AppService],
