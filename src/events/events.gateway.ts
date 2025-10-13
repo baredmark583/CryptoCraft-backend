@@ -49,7 +49,7 @@ export class EventsGateway implements OnGatewayInit, OnGatewayConnection, OnGate
   async handleConnection(client: Socket) {
     this.logger.log(`Client connected: ${client.id}`);
     try {
-      const token = client.handshake.query.token as string;
+      const token = client.handshake.auth.token as string;
       if (!token || token === 'null' || token === 'undefined') {
         throw new Error('Authentication token not provided');
       }
@@ -128,7 +128,7 @@ export class EventsGateway implements OnGatewayInit, OnGatewayConnection, OnGate
         imageUrl: payload.message.imageUrl,
         sender: {
           id: user.sub,
-          name: user.username,
+          username: user.username,
           avatarUrl: user.avatarUrl,
         },
         chat: { id: payload.streamId },
