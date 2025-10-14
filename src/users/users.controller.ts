@@ -31,7 +31,7 @@ export class UsersController {
   }
 
   @Get(':id')
-  @Roles(UserRole.SUPER_ADMIN, UserRole.MODERATOR)
+  // @Roles decorator removed to make this public for viewing profiles
   findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.usersService.findOne(id);
   }
