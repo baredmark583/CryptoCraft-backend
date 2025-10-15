@@ -8,35 +8,39 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from './entities/user.entity';
 
 @Controller('users')
-@UseGuards(JwtAuthGuard, RolesGuard)
+// @UseGuards(JwtAuthGuard, RolesGuard) // REMOVED from controller level
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Post()
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.SUPER_ADMIN)
   create(@Body() createUserDto: CreateUserDto) {
     return this.usersService.create(createUserDto);
   }
 
   @Get()
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.SUPER_ADMIN, UserRole.MODERATOR)
   findAll() {
     return this.usersService.findAll();
   }
 
   @Get(':id/details')
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.SUPER_ADMIN, UserRole.MODERATOR)
   findOneWithDetails(@Param('id', ParseUUIDPipe) id: string) {
     return this.usersService.findOneWithDetails(id);
   }
 
   @Get(':id')
-  // @Roles decorator removed to make this public for viewing profiles
+  // No guards - this is now a public endpoint
   findOne(@Param('id', ParseUUIDPipe) id: string) {
     return this.usersService.findOne(id);
   }
 
   @Patch(':id')
+  @UseGuards(JwtAuthGuard) // Only check for a valid token
   update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() updateUserDto: UpdateUserDto,
@@ -54,7 +58,7 @@ export class UsersController {
       );
     }
 
-    // A non-admin user cannot change their role.
+    // A non-admin user cannot change their role. An admin can.
     if (
       requestingUser.role !== UserRole.SUPER_ADMIN &&
       updateUserDto.role
@@ -66,6 +70,7 @@ export class UsersController {
   }
 
   @Delete(':id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.SUPER_ADMIN)
   remove(@Param('id', ParseUUIDPipe) id: string) {
     return this.usersService.remove(id);
