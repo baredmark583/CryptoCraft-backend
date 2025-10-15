@@ -1,5 +1,5 @@
 // FIX: Changed `import type` to a standard `import` for `Express` to ensure the Express namespace is available for Multer's type augmentation, resolving the 'Express.Multer' type error.
-import { Express } from 'express';
+// FIX: Removed local import of Express to allow global namespace augmentation from 'multer' to work correctly.
 import 'multer';
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { v2 as cloudinary } from 'cloudinary';
