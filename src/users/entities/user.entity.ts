@@ -14,9 +14,11 @@ import { PromoCode } from '../../promocodes/entities/promocode.entity';
 
 export interface ShippingAddress {
   city: string;
-  postOffice: string;
-  recipientName: string;
-  phoneNumber: string;
+  postOffice?: string;
+  recipientName?: string;
+  phoneNumber?: string;
+  cityRef?: string;
+  warehouseRef?: string;
 }
 
 export interface BusinessInfo {

@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsArray, IsEnum, IsObject, IsOptional, ValidateNested, IsNumber, IsString } from 'class-validator';
+import { IsArray, IsEnum, IsObject, IsOptional, ValidateNested, IsNumber, IsString, IsNotEmpty } from 'class-validator';
 import { ShippingAddress } from '../../users/entities/user.entity';
 
 class CartItemDto {
@@ -20,6 +20,32 @@ class CartItemDto {
   purchaseType: 'RETAIL' | 'WHOLESALE';
 }
 
+class FullShippingAddressDto implements ShippingAddress {
+    @IsString()
+    @IsNotEmpty()
+    city: string;
+
+    @IsString()
+    @IsNotEmpty()
+    postOffice: string;
+    
+    @IsString()
+    @IsNotEmpty()
+    recipientName: string;
+    
+    @IsString()
+    @IsNotEmpty()
+    phoneNumber: string;
+
+    @IsString()
+    @IsOptional()
+    cityRef?: string;
+
+    @IsString()
+    @IsOptional()
+    warehouseRef?: string;
+}
+
 
 export class CreateOrderDto {
   @IsArray()
@@ -34,7 +60,9 @@ export class CreateOrderDto {
   shippingMethod: 'NOVA_POSHTA' | 'UKRPOSHTA';
   
   @IsObject()
-  shippingAddress: ShippingAddress;
+  @ValidateNested()
+  @Type(() => FullShippingAddressDto)
+  shippingAddress: FullShippingAddressDto;
   
   @IsString()
   @IsOptional()

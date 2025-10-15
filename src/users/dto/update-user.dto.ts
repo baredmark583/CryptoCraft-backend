@@ -10,8 +10,8 @@ class ShippingAddressDto {
     city: string;
 
     @IsString()
-    @IsOptional()
-    postOffice?: string;
+    @IsNotEmpty()
+    postOffice: string;
 
     @IsString()
     @IsOptional()
