@@ -1,9 +1,6 @@
-// FIX: Removed the local import of `Express` to fix the `Namespace 'Express' has no exported member 'Multer'` error. The `import 'multer';` statement is sufficient as its type definitions augment the global Express namespace.
-// FIX: Changed `import type` to a standard `import` for `Express` to ensure the Express namespace is available for Multer's type augmentation, resolving the 'Express.Multer' type error.
-// FIX: Removed local import of Express to allow global namespace augmentation from 'multer' to work correctly.
+// FIX: Import the `Express` type to make the global Express namespace available, which is augmented by 'multer'. This resolves the "Cannot find namespace 'Express'" error.
+import type { Express } from 'express';
 import 'multer';
-// FIX: Add an empty import from 'express' to trigger TypeScript to load the Express namespace, which is augmented by 'multer'. This resolves the "Cannot find namespace 'Express'" error.
-import {} from 'express';
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { v2 as cloudinary } from 'cloudinary';
 import { Readable } from 'stream';
