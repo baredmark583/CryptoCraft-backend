@@ -111,7 +111,20 @@ export class AuthService {
     };
   }
 
-  async getMe(userId: string): Promise<User> {
+  async getMe(userId: string, userRole: UserRole): Promise<User | Partial<User>> {
+    // Handle special admin user case. This user does not exist in the database.
+    if (
+      userId === 'admin-user' &&
+      (userRole === UserRole.SUPER_ADMIN || userRole === UserRole.MODERATOR)
+    ) {
+      return {
+        id: 'admin-user',
+        email: this.configService.get<string>('SUPER_ADMIN_EMAIL'),
+        name: 'Administrator',
+        role: userRole,
+      };
+    }
+
     try {
         const user = await this.usersService.findOne(userId);
         return user;

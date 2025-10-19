@@ -4,6 +4,7 @@ import { TelegramAuthDto } from './dto/telegram-auth.dto';
 import { AdminLoginDto } from './dto/admin-login.dto';
 import { WebLoginDto } from './dto/web-login.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { UserRole } from 'src/users/entities/user.entity';
 
 @Controller('auth')
 export class AuthController {
@@ -31,6 +32,7 @@ export class AuthController {
   @Get('me')
   getMe(@Req() req) {
     const userId = req.user.userId;
-    return this.authService.getMe(userId);
+    const userRole = req.user.role as UserRole;
+    return this.authService.getMe(userId, userRole);
   }
 }
