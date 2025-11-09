@@ -19,8 +19,8 @@ export class AuthController {
     const { access_token, user: profile } = await this.authService.login(user);
     const isProd = process.env.NODE_ENV === 'production';
     const csrf = Math.random().toString(36).slice(2);
-    res.cookie('access_token', access_token, { httpOnly: true, secure: isProd, sameSite: 'lax', path: '/' });
-    res.cookie('csrf_token', csrf, { httpOnly: false, secure: isProd, sameSite: 'lax', path: '/' });
+    res.cookie('access_token', access_token, { httpOnly: true, secure: isProd, sameSite: 'none', path: '/' });
+    res.cookie('csrf_token', csrf, { httpOnly: false, secure: isProd, sameSite: 'none', path: '/' });
     return { user: profile };
   }
 
@@ -31,8 +31,8 @@ export class AuthController {
     const { access_token, user: profile } = await this.authService.login(user);
     const isProd = process.env.NODE_ENV === 'production';
     const csrf = Math.random().toString(36).slice(2);
-    res.cookie('access_token', access_token, { httpOnly: true, secure: isProd, sameSite: 'lax', path: '/' });
-    res.cookie('csrf_token', csrf, { httpOnly: false, secure: isProd, sameSite: 'lax', path: '/' });
+    res.cookie('access_token', access_token, { httpOnly: true, secure: isProd, sameSite: 'none', path: '/' });
+    res.cookie('csrf_token', csrf, { httpOnly: false, secure: isProd, sameSite: 'none', path: '/' });
     return { user: profile };
   }
 
@@ -43,8 +43,8 @@ export class AuthController {
     const { access_token, user } = await this.authService.login(adminUser);
     const isProd = process.env.NODE_ENV === 'production';
     const csrf = Math.random().toString(36).slice(2);
-    res.cookie('access_token', access_token, { httpOnly: true, secure: isProd, sameSite: 'lax', path: '/' });
-    res.cookie('csrf_token', csrf, { httpOnly: false, secure: isProd, sameSite: 'lax', path: '/' });
+    res.cookie('access_token', access_token, { httpOnly: true, secure: isProd, sameSite: 'none', path: '/' });
+    res.cookie('csrf_token', csrf, { httpOnly: false, secure: isProd, sameSite: 'none', path: '/' });
     return { user };
   }
 
