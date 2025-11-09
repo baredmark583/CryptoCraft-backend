@@ -1,0 +1,93 @@
+import { Repository } from 'typeorm';
+import { Proposal } from './entities/proposal.entity';
+import { Vote } from './entities/vote.entity';
+import { User } from '../users/entities/user.entity';
+import { CreateProposalDto } from './dto/create-proposal.dto';
+import { CastVoteDto } from './dto/cast-vote.dto';
+import { UpdateProposalDto } from './dto/update-proposal.dto';
+export declare class GovernanceService {
+    private readonly proposalRepository;
+    private readonly voteRepository;
+    private readonly userRepository;
+    constructor(proposalRepository: Repository<Proposal>, voteRepository: Repository<Vote>, userRepository: Repository<User>);
+    private mapProposal;
+    createProposal(proposerId: string, createDto: CreateProposalDto): Promise<Proposal>;
+    findAllProposals(): Promise<{
+        votesFor: number;
+        votesAgainst: number;
+        voters: {};
+        title: string;
+        description: string;
+        proposer: User;
+        endsAt: number;
+        status: import("./entities/proposal.entity").ProposalStatus;
+        votes: Vote[];
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        deletedAt?: Date | null;
+    }[]>;
+    findAllForAdmin(): Promise<{
+        votesFor: number;
+        votesAgainst: number;
+        voters: {};
+        title: string;
+        description: string;
+        proposer: User;
+        endsAt: number;
+        status: import("./entities/proposal.entity").ProposalStatus;
+        votes: Vote[];
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        deletedAt?: Date | null;
+    }[]>;
+    findProposalById(id: string): Promise<{
+        votesFor: number;
+        votesAgainst: number;
+        voters: {};
+        title: string;
+        description: string;
+        proposer: User;
+        endsAt: number;
+        status: import("./entities/proposal.entity").ProposalStatus;
+        votes: Vote[];
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        deletedAt?: Date | null;
+    }>;
+    castVote(proposalId: string, voterId: string, castVoteDto: CastVoteDto): Promise<{
+        votesFor: number;
+        votesAgainst: number;
+        voters: {};
+        title: string;
+        description: string;
+        proposer: User;
+        endsAt: number;
+        status: import("./entities/proposal.entity").ProposalStatus;
+        votes: Vote[];
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        deletedAt?: Date | null;
+    }>;
+    update(id: string, updateDto: UpdateProposalDto): Promise<{
+        votesFor: number;
+        votesAgainst: number;
+        voters: {};
+        title: string;
+        description: string;
+        proposer: User;
+        endsAt: number;
+        status: import("./entities/proposal.entity").ProposalStatus;
+        votes: Vote[];
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        deletedAt?: Date | null;
+    }>;
+    remove(id: string): Promise<{
+        success: boolean;
+    }>;
+}

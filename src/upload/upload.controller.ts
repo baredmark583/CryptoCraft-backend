@@ -2,6 +2,7 @@
 import type { Express } from 'express';
 import 'multer';
 import { Controller, Post, UseInterceptors, UploadedFile, UseGuards, Body } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { UploadService } from './upload.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -10,6 +11,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 export class UploadController {
   constructor(private readonly uploadService: UploadService) {}
 
+  @Throttle({ default: { limit: 10, ttl: 60 } })
   @Post()
   @UseGuards(JwtAuthGuard)
   @UseInterceptors(FileInterceptor('file'))
@@ -17,6 +19,7 @@ export class UploadController {
     return this.uploadService.uploadFile(file);
   }
 
+  @Throttle({ default: { limit: 10, ttl: 60 } })
   @Post('url')
   @UseGuards(JwtAuthGuard)
   uploadFileFromUrl(@Body('url') imageUrl: string) {

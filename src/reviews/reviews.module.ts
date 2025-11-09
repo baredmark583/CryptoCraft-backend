@@ -5,9 +5,10 @@ import { ReviewsController } from './reviews.controller';
 import { Review } from './entities/review.entity';
 import { User } from '../users/entities/user.entity';
 import { Product } from '../products/entities/product.entity';
+import { Order } from '../orders/entities/order.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Review, User, Product])],
+  imports: [TypeOrmModule.forFeature([Review, User, Product, Order])],
   controllers: [ReviewsController],
   providers: [ReviewsService],
 })

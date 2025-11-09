@@ -1,4 +1,6 @@
-import { Controller, Post, Body, UseGuards, Req, Get } from '@nestjs/common';
+import { Controller, Post, Body, UseGuards, Req, Get, Res } from '@nestjs/common';
+import type { Response } from 'express';
+import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { TelegramAuthDto } from './dto/telegram-auth.dto';
 import { AdminLoginDto } from './dto/admin-login.dto';
@@ -10,22 +12,40 @@ import { UserRole } from 'src/users/entities/user.entity';
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  @Throttle({ default: { limit: 20, ttl: 60 } })
   @Post('telegram')
-  async telegramLogin(@Body() telegramAuthDto: TelegramAuthDto) {
+  async telegramLogin(@Body() telegramAuthDto: TelegramAuthDto, @Res({ passthrough: true }) res: Response) {
     const user = await this.authService.validateTelegramData(telegramAuthDto.initData);
-    return this.authService.login(user);
+    const { access_token, user: profile } = await this.authService.login(user);
+    const isProd = process.env.NODE_ENV === 'production';
+    const csrf = Math.random().toString(36).slice(2);
+    res.cookie('access_token', access_token, { httpOnly: true, secure: isProd, sameSite: 'lax', path: '/' });
+    res.cookie('csrf_token', csrf, { httpOnly: false, secure: isProd, sameSite: 'lax', path: '/' });
+    return { user: profile };
   }
 
+  @Throttle({ default: { limit: 20, ttl: 60 } })
   @Post('telegram/web-login')
-  async telegramWebLogin(@Body() webLoginDto: WebLoginDto) {
+  async telegramWebLogin(@Body() webLoginDto: WebLoginDto, @Res({ passthrough: true }) res: Response) {
     const user = await this.authService.validateTelegramWebLogin(webLoginDto);
-    return this.authService.login(user);
+    const { access_token, user: profile } = await this.authService.login(user);
+    const isProd = process.env.NODE_ENV === 'production';
+    const csrf = Math.random().toString(36).slice(2);
+    res.cookie('access_token', access_token, { httpOnly: true, secure: isProd, sameSite: 'lax', path: '/' });
+    res.cookie('csrf_token', csrf, { httpOnly: false, secure: isProd, sameSite: 'lax', path: '/' });
+    return { user: profile };
   }
 
+  @Throttle({ default: { limit: 5, ttl: 60 } })
   @Post('admin/login')
-  async adminLogin(@Body() adminLoginDto: AdminLoginDto) {
+  async adminLogin(@Body() adminLoginDto: AdminLoginDto, @Res({ passthrough: true }) res: Response) {
     const adminUser = await this.authService.validateAdmin(adminLoginDto);
-    return this.authService.login(adminUser);
+    const { access_token, user } = await this.authService.login(adminUser);
+    const isProd = process.env.NODE_ENV === 'production';
+    const csrf = Math.random().toString(36).slice(2);
+    res.cookie('access_token', access_token, { httpOnly: true, secure: isProd, sameSite: 'lax', path: '/' });
+    res.cookie('csrf_token', csrf, { httpOnly: false, secure: isProd, sameSite: 'lax', path: '/' });
+    return { user };
   }
 
   @UseGuards(JwtAuthGuard)

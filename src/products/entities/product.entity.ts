@@ -4,6 +4,8 @@ import { User } from '../../users/entities/user.entity';
 import { OrderItem } from '../../orders/entities/order-item.entity';
 import { Message } from '../../chats/entities/message.entity';
 import { Review } from '../../reviews/entities/review.entity';
+import { ProductModerationEvent } from './product-moderation-event.entity';
+import { ProductRevision } from './product-revision.entity';
 
 // Типы для jsonb полей, взяты из frontend/types.ts для справки
 export interface VariantAttribute {
@@ -219,4 +221,19 @@ export class Product extends BaseEntity {
 
   @Column('text', { nullable: true })
   rejectionReason?: string;
+
+  @Column('text', { nullable: true })
+  appealMessage?: string;
+
+  @ManyToOne(() => User, { nullable: true, onDelete: 'SET NULL' })
+  moderatedBy?: User;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  moderatedAt?: Date | null;
+
+  @OneToMany(() => ProductModerationEvent, (event) => event.product, { cascade: true })
+  moderationEvents?: ProductModerationEvent[];
+
+  @OneToMany(() => ProductRevision, (revision) => revision.product, { cascade: true })
+  revisions?: ProductRevision[];
 }

@@ -22,4 +22,17 @@ export class ForumThread extends BaseEntity {
 
   @Column({ default: false })
   isPinned: boolean;
+
+  @Column({
+    type: 'enum',
+    enum: ['OPEN', 'LOCKED'],
+    default: 'OPEN',
+  })
+  status: 'OPEN' | 'LOCKED';
+
+  @Column('text', { array: true, default: '{}' })
+  tags: string[];
+
+  @Column({ type: 'int', default: 0 })
+  viewCount: number;
 }

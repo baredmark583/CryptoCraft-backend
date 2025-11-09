@@ -1,0 +1,73 @@
+import { BaseEntity } from '../../database/base.entity';
+import { User } from '../../users/entities/user.entity';
+import { OrderItem } from '../../orders/entities/order-item.entity';
+import { Message } from '../../chats/entities/message.entity';
+import { Review } from '../../reviews/entities/review.entity';
+import { ProductModerationEvent } from './product-moderation-event.entity';
+import { ProductRevision } from './product-revision.entity';
+export interface VariantAttribute {
+    name: string;
+    options: string[];
+}
+export interface ProductVariant {
+    id: string;
+    attributes: Record<string, string>;
+    price: number;
+    salePrice?: number;
+    stock: number;
+    sku?: string;
+    imageUrl?: string;
+}
+export type AuthenticationStatus = 'NONE' | 'PENDING' | 'AUTHENTICATED' | 'REJECTED';
+export type ModerationStatus = 'Pending Moderation' | 'Active' | 'Rejected';
+export declare class Product extends BaseEntity {
+    title: string;
+    description: string;
+    price?: number;
+    salePrice?: number;
+    imageUrls: string[];
+    videoUrl?: string;
+    category: string;
+    seller: User;
+    dynamicAttributes: Record<string, string | number>;
+    stock: number;
+    variants?: ProductVariant[];
+    variantAttributes?: VariantAttribute[];
+    isPromoted?: boolean;
+    uniqueness?: 'ONE_OF_A_KIND' | 'LIMITED_EDITION' | 'MADE_TO_ORDER';
+    productType?: 'PHYSICAL' | 'DIGITAL' | 'SERVICE';
+    digitalFileUrl?: string;
+    giftWrapAvailable?: boolean;
+    giftWrapPrice?: number;
+    purchaseCost?: number;
+    weight?: number;
+    isB2BEnabled?: boolean;
+    b2bMinQuantity?: number;
+    b2bPrice?: number;
+    turnaroundTime?: string;
+    serviceLocation?: 'REMOTE' | 'ON-SITE';
+    warrantyDays?: number;
+    serialNumber?: string;
+    isAuction?: boolean;
+    auctionEnds?: number;
+    startingBid?: number;
+    currentBid?: number;
+    bidders?: string[];
+    winnerId?: string;
+    finalPrice?: number;
+    isAuthenticationAvailable?: boolean;
+    authenticationStatus?: AuthenticationStatus;
+    authenticationReportUrl?: string;
+    nftTokenId?: string;
+    nftContractAddress?: string;
+    orderItems: OrderItem[];
+    messageContexts: Message[];
+    reviews: Review[];
+    status: ModerationStatus;
+    rejectionReason?: string;
+    appealMessage?: string;
+    moderatedBy?: User;
+    moderatedAt?: Date | null;
+    moderationEvents?: ProductModerationEvent[];
+    revisions?: ProductRevision[];
+}

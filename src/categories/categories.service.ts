@@ -1,10 +1,10 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
 import { Category } from './entities/category.entity';
-import { CategorySchema } from '../constants';
+import { CategoryFieldWithMeta, CategorySchema } from '../constants';
 
 @Injectable()
 export class CategoriesService {
@@ -15,13 +15,17 @@ export class CategoriesService {
   ) {}
 
   create(createCategoryDto: CreateCategoryDto) {
-    const category = this.categoryRepository.create(createCategoryDto);
+    const normalizedDto = {
+      ...createCategoryDto,
+      fields: this.normalizeFields(createCategoryDto.fields ?? []),
+    };
+    const category = this.categoryRepository.create(normalizedDto);
     return this.categoryRepository.save(category);
   }
 
   async findAll() {
     const allCategories = await this.categoryRepository.find({
-        order: { name: 'ASC' }
+      order: { name: 'ASC' },
     });
 
     const categoryMap = new Map<string, Category>();
@@ -43,7 +47,16 @@ export class CategoriesService {
         }
     });
 
-    return rootCategories;
+    const enrich = (category: Category): Category => {
+      const resolvedFields = this.resolveFields(category, categoryMap);
+      (category as Category & { resolvedFields: CategoryFieldWithMeta[] }).resolvedFields = resolvedFields;
+      if (category.subcategories) {
+        category.subcategories = category.subcategories.map((child) => enrich(child));
+      }
+      return category;
+    };
+
+    return rootCategories.map((root) => enrich(root));
   }
 
   async findOne(id: string) {
@@ -60,7 +73,12 @@ export class CategoriesService {
   async update(id: string, updateCategoryDto: UpdateCategoryDto) {
     // FIX: Create a mutable copy of the DTO with an explicit type to handle fields safely.
     // This also helps TypeScript resolve the type of the 'fields' property.
-    const updatePayload: Partial<Category> = { ...updateCategoryDto };
+    const updatePayload: Partial<Category> = {
+      ...updateCategoryDto,
+      fields: updateCategoryDto.fields
+        ? this.normalizeFields(updateCategoryDto.fields)
+        : undefined,
+    };
 
     // We need to clean up the fields array, removing temporary IDs
     if (updatePayload.fields) {
@@ -99,7 +117,7 @@ export class CategoriesService {
                 const newCategory = manager.create(Category, {
                     name: categoryData.name,
                     iconUrl: categoryData.iconUrl,
-                    fields: categoryData.fields,
+                    fields: this.normalizeFields(categoryData.fields || []),
                     parentId: parentId,
                 });
                 const savedCategory = await manager.save(newCategory);
@@ -129,7 +147,7 @@ export class CategoriesService {
                 const newCategory = manager.create(Category, {
                     name: categoryData.name,
                     iconUrl: categoryData.iconUrl,
-                    fields: categoryData.fields,
+                    fields: this.normalizeFields(categoryData.fields || []),
                     parentId: currentParentId,
                 });
                 const savedCategory = await manager.save(newCategory);
@@ -146,5 +164,94 @@ export class CategoriesService {
         // Start recursion with the provided parentId
         await saveCategoriesRecursive(categories, parentId);
     });
+  }
+
+  async getResolvedFieldsById(categoryId: string): Promise<CategoryFieldWithMeta[]> {
+    const allCategories = await this.categoryRepository.find();
+    const category = allCategories.find((cat) => cat.id === categoryId);
+    if (!category) {
+      throw new NotFoundException(`Category with ID ${categoryId} not found.`);
+    }
+    const map = new Map(allCategories.map((cat) => [cat.id, cat]));
+    return this.resolveFields(category, map);
+  }
+
+  async getResolvedFieldsByName(categoryName: string): Promise<CategoryFieldWithMeta[]> {
+    const allCategories = await this.categoryRepository.find();
+    const category = allCategories.find((cat) => cat.name === categoryName);
+    if (!category) {
+      throw new NotFoundException(`Category with name "${categoryName}" not found.`);
+    }
+    const map = new Map(allCategories.map((cat) => [cat.id, cat]));
+    return this.resolveFields(category, map);
+  }
+
+  private normalizeFields(fields: Category['fields']): Category['fields'] {
+    if (!fields) return [];
+    return fields.map((field) => {
+      const name = field.name?.trim() || this.slugify(field.label);
+      if (!name) {
+        throw new BadRequestException('Category field must have a name or label.');
+      }
+      return {
+        ...field,
+        name,
+        id: field.id,
+        options: field.options
+          ?.map((option) => option?.trim())
+          ?.filter((option) => Boolean(option && option.length > 0)),
+      };
+    });
+  }
+
+  private slugify(value: string): string {
+    return (value || '')
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, '_')
+      .replace(/[^a-z0-9_\-а-яё]/gi, '');
+  }
+
+  private resolveFields(category: Category, categoryMap: Map<string, Category>): CategoryFieldWithMeta[] {
+    const lineage: Category[] = [];
+    let current: Category | undefined = category;
+    const visited = new Set<string>();
+
+    while (current) {
+      lineage.unshift(current);
+      if (!current.parentId) break;
+      current = categoryMap.get(current.parentId);
+      if (current && visited.has(current.id)) {
+        break;
+      }
+      if (current) {
+        visited.add(current.id);
+      }
+    }
+
+    const resolved: CategoryFieldWithMeta[] = [];
+    lineage.forEach((cat) => {
+      (cat.fields || []).forEach((field) => {
+        const name = field.name?.trim() || this.slugify(field.label);
+        if (!name) {
+          return;
+        }
+        const meta: CategoryFieldWithMeta = {
+          ...field,
+          name,
+          inherited: cat.id !== category.id,
+          sourceCategoryId: cat.id,
+          sourceCategoryName: cat.name,
+        };
+        const existingIndex = resolved.findIndex((f) => f.name === name);
+        if (existingIndex >= 0) {
+          resolved[existingIndex] = meta;
+        } else {
+          resolved.push(meta);
+        }
+      });
+    });
+
+    return resolved;
   }
 }

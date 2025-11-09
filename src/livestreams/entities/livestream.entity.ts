@@ -37,4 +37,22 @@ export class Livestream extends BaseEntity {
 
   @Column({ default: false })
   isPromoted: boolean;
+
+  @Column({ type: 'int', default: 0 })
+  peakViewers: number;
+
+  @Column({ type: 'int', default: 0 })
+  totalViewerMinutes: number;
+
+  @Column({ nullable: true })
+  recordingUrl?: string;
+
+  @Column({ type: 'int', default: 0 })
+  abuseStrikes: number;
+
+  @Column('jsonb', { default: [] })
+  abuseReports: { reason: string; reporterId?: string; reportedAt: string }[];
+
+  @Column({ type: 'timestamptz', nullable: true })
+  lastAnalyticsAt?: Date;
 }

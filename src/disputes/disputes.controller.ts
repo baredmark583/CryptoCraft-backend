@@ -17,6 +17,11 @@ export class DisputesController {
     return this.disputesService.findAll();
   }
 
+  @Get('report')
+  getReport() {
+    return this.disputesService.getReport();
+  }
+
   @Patch(':id')
   update(@Param('id', ParseUUIDPipe) id: string, @Body() updateDisputeDto: UpdateDisputeDto) {
     return this.disputesService.update(id, updateDisputeDto);

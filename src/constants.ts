@@ -12,6 +12,12 @@ export interface CategoryField {
   options?: string[];
 }
 
+export interface CategoryFieldWithMeta extends CategoryField {
+  inherited?: boolean;
+  sourceCategoryId?: string | null;
+  sourceCategoryName?: string;
+}
+
 export interface CategorySchema {
   id?: string;
   name: string;
@@ -19,6 +25,7 @@ export interface CategorySchema {
   iconUrl?: string | null;
   parentId?: string | null;
   subcategories?: CategorySchema[];
+  resolvedFields?: CategoryFieldWithMeta[];
 }
 
 

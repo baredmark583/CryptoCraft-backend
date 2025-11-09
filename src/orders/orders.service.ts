@@ -8,6 +8,7 @@ import { Product } from '../products/entities/product.entity';
 import { OrderItem } from './entities/order-item.entity';
 import { UpdateOrderDto } from './dto/update-order.dto';
 import { TelegramService } from '../telegram/telegram.service';
+import { EscrowService } from '../escrow/escrow.service';
 
 @Injectable()
 export class OrdersService {
@@ -18,10 +19,32 @@ export class OrdersService {
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
     private readonly telegramService: TelegramService,
+    private readonly escrowService: EscrowService,
   ) {}
 
   async create(createOrderDto: CreateOrderDto, buyerId: string): Promise<{ success: boolean }> {
-    const { cartItems, shippingAddress, shippingMethod, paymentMethod, transactionHash } = createOrderDto;
+    const {
+      cartItems,
+      shippingAddress,
+      shippingMethod,
+      paymentMethod,
+      transactionHash,
+      checkoutMode = 'CART',
+      escrowDepositAmount,
+      meetingDetails,
+    } = createOrderDto;
+
+    if (checkoutMode === 'DEPOSIT' && paymentMethod !== 'ESCROW') {
+      throw new BadRequestException('Deposit checkout mode доступен только для escrow-платежей.');
+    }
+
+    if (checkoutMode === 'DEPOSIT' && (!escrowDepositAmount || escrowDepositAmount <= 0)) {
+      throw new BadRequestException('Deposit amount is required for deposit checkout mode.');
+    }
+
+    if (checkoutMode === 'DEPOSIT' && !meetingDetails) {
+      throw new BadRequestException('Meeting details are required for deposit checkout mode.');
+    }
 
     // Group items by seller
     const itemsBySeller = new Map<string, typeof cartItems>();
@@ -32,6 +55,8 @@ export class OrdersService {
       }
       itemsBySeller.get(sellerId).push(item);
     }
+
+    const createdOrders: Order[] = [];
 
     await this.dataSource.transaction(async (manager) => {
       const buyer = await manager.findOneBy(User, { id: buyerId });
@@ -68,17 +93,22 @@ export class OrdersService {
         }
 
         // 2. Create order and decrement stock
-        const newOrder = manager.create(Order, {
+        const baseOrder = {
           buyer,
           seller,
-          shippingAddress,
-          shippingMethod,
+          shippingAddress: checkoutMode === 'DEPOSIT' ? null : shippingAddress,
+          shippingMethod: checkoutMode === 'DEPOSIT' ? 'MEETUP' : shippingMethod,
           paymentMethod,
           transactionHash,
           orderDate: Date.now(),
           items: [],
           total: 0,
-        });
+          checkoutMode,
+          meetingDetails: checkoutMode === 'DEPOSIT' ? meetingDetails : null,
+          depositAmount: checkoutMode === 'DEPOSIT' ? escrowDepositAmount : null,
+        };
+
+        const newOrder = manager.create(Order, baseOrder);
 
         let total = 0;
         for (const item of items) {
@@ -113,16 +143,29 @@ export class OrdersService {
         }
         
         newOrder.total = total;
+        if (paymentMethod === 'DIRECT') {
+            newOrder.status = 'PAID';
+        }
         const savedOrder = await manager.save(Order, newOrder);
-        
-        // Send notification after successful save
+        createdOrders.push(savedOrder);
+      } // end sellers loop
+    });
+    
+    for (const savedOrder of createdOrders) {
         try {
-            await this.telegramService.sendNewOrderNotification(seller, buyer, savedOrder.id, savedOrder.total);
+            if (savedOrder.seller && savedOrder.buyer) {
+                await this.telegramService.sendNewOrderNotification(savedOrder.seller, savedOrder.buyer, savedOrder.id, savedOrder.total);
+            }
         } catch (e) {
             console.error(`Failed to send Telegram notification for order ${savedOrder.id}`, e);
         }
-      }
-    });
+
+        if (savedOrder.paymentMethod === 'ESCROW') {
+            await this.escrowService.createForOrder(savedOrder, {
+                escrowType: savedOrder.checkoutMode === 'DEPOSIT' ? 'DEPOSIT' : 'CART',
+            });
+        }
+    }
     
     return { success: true };
   }

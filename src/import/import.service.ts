@@ -50,8 +50,11 @@ export class ImportService {
     this.logger.log(`Scraping successful. HTML length: ${html.length}`);
 
     // 2. Process HTML with AI to extract structured data
-    const aiData = await this.aiService.processImportedHtml(html);
-    this.logger.log(`AI processing successful. Title: "${aiData.title}"`);
+    const aiResult = await this.aiService.processImportedHtml(html);
+    const aiData = aiResult.data;
+    this.logger.log(
+      `AI processing via ${aiResult.meta.provider} completed in ${aiResult.meta.latencyMs}ms. Title: "${aiData.title}"`,
+    );
 
     // 3. Process images: download from original source and upload to Cloudinary
     const uploadedImageUrls = await Promise.all(

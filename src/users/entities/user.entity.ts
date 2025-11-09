@@ -99,6 +99,19 @@ export class User extends BaseEntity {
 
   @Column({ nullable: true })
   paymentCard?: string;
+
+  @Column({
+    type: 'enum',
+    enum: ['NONE', 'PRO'],
+    default: 'NONE',
+  })
+  verificationLevel: 'NONE' | 'PRO';
+
+  @Column({ type: 'timestamptz', nullable: true })
+  proGrantedAt?: Date;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  lastProReviewAt?: Date;
   
   @OneToMany(() => Product, (product) => product.seller)
   products: Product[];

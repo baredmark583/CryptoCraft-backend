@@ -1,0 +1,56 @@
+import { UsersService } from './users.service';
+import { CreateUserDto } from './dto/create-user.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
+import { UserRole } from './entities/user.entity';
+export declare class UsersController {
+    private readonly usersService;
+    constructor(usersService: UsersService);
+    create(createUserDto: CreateUserDto): Promise<import("./entities/user.entity").User>;
+    findAll(): Promise<import("./entities/user.entity").User[]>;
+    findOneWithDetails(id: string): Promise<{
+        products: import("../products/entities/product.entity").Product[];
+        sales: import("../orders/entities/order.entity").Order[];
+        purchases: import("../orders/entities/order.entity").Order[];
+        disputes: import("../disputes/entities/dispute.entity").Dispute[];
+        financials: {
+            gmv: number;
+            totalSpent: number;
+            platformCommission: number;
+        };
+        telegramId: number;
+        name: string;
+        email?: string;
+        avatarUrl: string;
+        headerImageUrl?: string;
+        rating: number;
+        following: string[];
+        balance: number;
+        commissionOwed: number;
+        role: UserRole;
+        affiliateId?: string;
+        phoneNumber?: string;
+        defaultShippingAddress?: import("./entities/user.entity").ShippingAddress;
+        businessInfo?: import("./entities/user.entity").BusinessInfo;
+        tonWalletAddress?: string;
+        paymentCard?: string;
+        verificationLevel: "NONE" | "PRO";
+        proGrantedAt?: Date;
+        lastProReviewAt?: Date;
+        reviews: import("../reviews/entities/review.entity").Review[];
+        chats: import("../chats/entities/chat.entity").Chat[];
+        sentMessages: import("../chats/entities/message.entity").Message[];
+        collections: import("../collections/entities/collection.entity").Collection[];
+        workshopPosts: import("../workshop/entities/workshop-post.entity").WorkshopPost[];
+        forumThreads: import("../forum/entities/forum-thread.entity").ForumThread[];
+        forumPosts: import("../forum/entities/forum-post.entity").ForumPost[];
+        notifications: import("../notifications/entities/notification.entity").Notification[];
+        promoCodes: import("../promocodes/entities/promocode.entity").PromoCode[];
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        deletedAt?: Date | null;
+    }>;
+    findOne(id: string): Promise<import("./entities/user.entity").User>;
+    update(id: string, updateUserDto: UpdateUserDto, req: any): Promise<import("./entities/user.entity").User>;
+    remove(id: string): Promise<void>;
+}

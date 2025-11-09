@@ -1,8 +1,11 @@
 
 
 import { Module } from '@nestjs/common';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { APP_GUARD, APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { LoggerModule } from 'nestjs-pino';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
@@ -30,23 +33,60 @@ import { EventsModule } from './events/events.module';
 import { PromoCodesModule } from './promocodes/promocodes.module';
 import { IconsModule } from './icons/icons.module';
 import { NovaPoshtaModule } from './nova-poshta/nova-poshta.module';
+import { EscrowModule } from './escrow/escrow.module';
+import { MonitoringModule } from './monitoring/monitoring.module';
+import { RequestLoggerInterceptor } from './common/interceptors/request-logger.interceptor';
+import { MetricsInterceptor } from './common/interceptors/metrics.interceptor';
+import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 
 @Module({
   imports: [
+    ThrottlerModule.forRoot({
+      throttlers: [{ ttl: 60, limit: 100 }],
+    }),
     ConfigModule.forRoot({
       isGlobal: true,
+    }),
+    LoggerModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => {
+        const isProd = configService.get<string>('NODE_ENV') === 'production';
+        return {
+          pinoHttp: {
+            level: isProd ? 'info' : 'debug',
+            transport: isProd
+              ? undefined
+              : {
+                  target: 'pino-pretty',
+                  options: {
+                    colorize: true,
+                    singleLine: false,
+                    translateTime: 'SYS:standard',
+                  },
+                },
+            autoLogging: false,
+            customProps: () => ({ service: 'cryptocraft-backend' }),
+          },
+        };
+      },
     }),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (configService: ConfigService) => ({
-        type: 'postgres',
-        url: configService.get('DATABASE_URL'),
-        // FIX: Replaced explicit entity path with `autoLoadEntities: true` to resolve `__dirname` error and simplify entity loading.
-        autoLoadEntities: true,
-        synchronize: true, // Be careful with this in production
-        ssl: configService.get('NODE_ENV') === 'production' ? { rejectUnauthorized: false } : false,
-      }),
+      useFactory: (configService: ConfigService) => {
+        const databaseUrl = configService.get<string>('DATABASE_URL');
+        if (!databaseUrl) {
+          throw new Error('DATABASE_URL is not configured');
+        }
+        const isProd = configService.get<string>('NODE_ENV') === 'production';
+        return {
+          type: 'postgres',
+          url: databaseUrl,
+          autoLoadEntities: true,
+          synchronize: !isProd,
+          ssl: isProd ? { rejectUnauthorized: true } : false,
+        } as const;
+      },
     }),
     AuthModule,
     UsersModule,
@@ -73,8 +113,16 @@ import { NovaPoshtaModule } from './nova-poshta/nova-poshta.module';
     PromoCodesModule,
     IconsModule,
     NovaPoshtaModule,
+    EscrowModule,
+    MonitoringModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
+    { provide: APP_INTERCEPTOR, useClass: MetricsInterceptor },
+    { provide: APP_INTERCEPTOR, useClass: RequestLoggerInterceptor },
+    { provide: APP_FILTER, useClass: AllExceptionsFilter },
+  ],
 })
 export class AppModule {}

@@ -1,5 +1,16 @@
 import { Type } from 'class-transformer';
-import { IsArray, IsEnum, IsObject, IsOptional, ValidateNested, IsNumber, IsString, IsNotEmpty } from 'class-validator';
+import {
+  IsArray,
+  IsEnum,
+  IsObject,
+  IsOptional,
+  ValidateNested,
+  IsNumber,
+  IsString,
+  IsNotEmpty,
+  ValidateIf,
+  Min,
+} from 'class-validator';
 import { ShippingAddress } from '../../users/entities/user.entity';
 
 class CartItemDto {
@@ -46,6 +57,19 @@ class FullShippingAddressDto implements ShippingAddress {
     warehouseRef?: string;
 }
 
+class MeetingDetailsDto {
+  @IsString()
+  @IsNotEmpty()
+  scheduledAt: string;
+
+  @IsString()
+  @IsNotEmpty()
+  location: string;
+
+  @IsOptional()
+  @IsString()
+  notes?: string;
+}
 
 export class CreateOrderDto {
   @IsArray()
@@ -56,15 +80,34 @@ export class CreateOrderDto {
   @IsEnum(['ESCROW', 'DIRECT'])
   paymentMethod: 'ESCROW' | 'DIRECT';
 
-  @IsEnum(['NOVA_POSHTA', 'UKRPOSHTA'])
-  shippingMethod: 'NOVA_POSHTA' | 'UKRPOSHTA';
+  @ValidateIf((dto) => dto.checkoutMode !== 'DEPOSIT')
+  @IsEnum(['NOVA_POSHTA', 'UKRPOSHTA', 'MEETUP'])
+  @IsOptional()
+  shippingMethod?: 'NOVA_POSHTA' | 'UKRPOSHTA' | 'MEETUP';
   
+  @ValidateIf((dto) => dto.checkoutMode !== 'DEPOSIT')
   @IsObject()
   @ValidateNested()
   @Type(() => FullShippingAddressDto)
-  shippingAddress: FullShippingAddressDto;
+  @IsOptional()
+  shippingAddress?: FullShippingAddressDto;
   
   @IsString()
   @IsOptional()
   transactionHash?: string;
+
+  @IsEnum(['CART', 'DEPOSIT'])
+  @IsOptional()
+  checkoutMode?: 'CART' | 'DEPOSIT';
+
+  @ValidateIf((dto) => dto.checkoutMode === 'DEPOSIT')
+  @IsNumber()
+  @Min(0.01)
+  escrowDepositAmount?: number;
+
+  @ValidateIf((dto) => dto.checkoutMode === 'DEPOSIT')
+  @IsObject()
+  @ValidateNested()
+  @Type(() => MeetingDetailsDto)
+  meetingDetails?: MeetingDetailsDto;
 }

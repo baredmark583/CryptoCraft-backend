@@ -13,4 +13,13 @@ export class ForumPost extends BaseEntity {
 
   @Column('text')
   content: string;
+
+  @Column({ default: false })
+  isHidden: boolean;
+
+  @Column({ type: 'int', default: 0 })
+  reportCount: number;
+
+  @Column('jsonb', { default: [] })
+  reportReasons: { reason: string; reporterId: string; reportedAt: string }[];
 }

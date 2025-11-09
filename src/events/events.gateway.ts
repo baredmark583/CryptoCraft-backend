@@ -16,6 +16,7 @@ import { UserRole } from 'src/users/entities/user.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Livestream } from 'src/livestreams/entities/livestream.entity';
 import { Repository } from 'typeorm';
+import { LivestreamsService } from 'src/livestreams/livestreams.service';
 
 @WebSocketGateway({
   cors: {
@@ -31,6 +32,7 @@ export class EventsGateway implements OnGatewayInit, OnGatewayConnection, OnGate
     private chatsService: ChatsService,
     @InjectRepository(Livestream)
     private readonly livestreamRepository: Repository<Livestream>,
+    private readonly livestreamsService: LivestreamsService,
   ) {}
 
   afterInit(server: Server) {
@@ -77,8 +79,7 @@ export class EventsGateway implements OnGatewayInit, OnGatewayConnection, OnGate
         return;
     }
     
-    // Update viewer count in DB
-    await this.livestreamRepository.update(streamId, { viewerCount });
+    await this.livestreamsService.recordViewerSnapshot(streamId, viewerCount);
 
     this.server.to(streamId).emit('streamUpdate', { viewers: viewerCount, likes: stream.likes });
     this.logger.log(`Broadcasting stats for ${streamId}: ${viewerCount} viewers, ${stream.likes} likes`);
@@ -102,7 +103,7 @@ export class EventsGateway implements OnGatewayInit, OnGatewayConnection, OnGate
       if (!payload || !payload.chatId) {
         throw new WsException('Chat not found');
       }
-      const userId = client.data.user.sub;
+      const userId = this.getSocketUserId(client);
       if (userId.startsWith('guest:')) {
         throw new WsException('Guests cannot send messages in private chats.');
       }
@@ -111,6 +112,27 @@ export class EventsGateway implements OnGatewayInit, OnGatewayConnection, OnGate
     } catch (error) {
       this.logger.error(`Error handling message: ${error.message}`);
       client.emit('error', new WsException(error.message || 'Failed to send message.'));
+    }
+  }
+
+  @SubscribeMessage('markAsRead')
+  async handleMarkAsRead(client: Socket, payload: { chatId: string }): Promise<void> {
+    try {
+      if (!payload?.chatId) {
+        throw new WsException('Chat not found');
+      }
+      const userId = this.getSocketUserId(client);
+      const updatedReceipts = await this.chatsService.markMessagesAsRead(payload.chatId, userId);
+      if (updatedReceipts.length) {
+        this.server.to(payload.chatId).emit('messagesRead', {
+          chatId: payload.chatId,
+          userId,
+          receipts: updatedReceipts,
+        });
+      }
+    } catch (error) {
+      this.logger.error(`Error handling markAsRead: ${error.message}`);
+      client.emit('error', new WsException(error.message || 'Failed to mark messages as read.'));
     }
   }
 
@@ -144,7 +166,7 @@ export class EventsGateway implements OnGatewayInit, OnGatewayConnection, OnGate
 
   @SubscribeMessage('typing')
   handleTyping(client: Socket, payload: { chatId: string; isTyping: boolean }): void {
-    const userId = client.data.user.sub;
+    const userId = this.getSocketUserId(client);
     // Broadcast to others in the room
     client.to(payload.chatId).emit('typing', { userId, isTyping: payload.isTyping });
   }
@@ -204,5 +226,13 @@ export class EventsGateway implements OnGatewayInit, OnGatewayConnection, OnGate
     this.logger.log(`Moderator ${user.sub} ending stream for room ${payload.roomId}`);
     // Broadcast to everyone in the room *including the sender*
     this.server.to(payload.roomId).emit('streamEnded');
+  }
+
+  private getSocketUserId(client: Socket): string {
+    const user = client.data.user;
+    if (!user?.sub) {
+      throw new WsException('Authentication required');
+    }
+    return user.sub;
   }
 }

@@ -7,6 +7,8 @@ import { Product } from '../products/entities/product.entity';
 import { CreateLivestreamDto } from './dto/create-livestream.dto';
 import { ConfigService } from '@nestjs/config';
 import { AccessToken } from 'livekit-server-sdk';
+import { FlagLivestreamDto } from './dto/flag-livestream.dto';
+import { AttachRecordingDto } from './dto/attach-recording.dto';
 
 @Injectable()
 export class LivestreamsService {
@@ -103,6 +105,58 @@ export class LivestreamsService {
     }
 
     livestream.status = 'ENDED';
+    livestream.lastAnalyticsAt = new Date();
     return this.livestreamRepository.save(livestream);
+  }
+
+  async recordViewerSnapshot(streamId: string, viewerCount: number): Promise<void> {
+    const stream = await this.livestreamRepository.findOneBy({ id: streamId });
+    if (!stream) return;
+    const now = new Date();
+    if (!stream.lastAnalyticsAt) {
+      stream.lastAnalyticsAt = now;
+    }
+    const minutesElapsed = Math.max(
+      1,
+      Math.floor((now.getTime() - stream.lastAnalyticsAt.getTime()) / 60000),
+    );
+    stream.viewerCount = viewerCount;
+    stream.peakViewers = Math.max(stream.peakViewers, viewerCount);
+    stream.totalViewerMinutes += viewerCount * minutesElapsed;
+    stream.lastAnalyticsAt = now;
+    await this.livestreamRepository.save(stream);
+  }
+
+  async flagLivestream(streamId: string, reporterId: string | null, dto: FlagLivestreamDto): Promise<void> {
+    const stream = await this.livestreamRepository.findOneBy({ id: streamId });
+    if (!stream) throw new NotFoundException('Livestream not found');
+    stream.abuseStrikes += 1;
+    stream.abuseReports = [
+      ...(stream.abuseReports || []),
+      { reason: dto.reason, reporterId: reporterId || 'guest', reportedAt: new Date().toISOString() },
+    ];
+    if (stream.abuseStrikes >= 5 && stream.status === 'LIVE') {
+      stream.status = 'ENDED';
+    }
+    await this.livestreamRepository.save(stream);
+  }
+
+  async attachRecording(streamId: string, dto: AttachRecordingDto, userId: string): Promise<Livestream> {
+    const stream = await this.findOne(streamId);
+    if (stream.seller.id !== userId) {
+      throw new ForbiddenException('Only the stream owner can attach recordings');
+    }
+    stream.recordingUrl = dto.recordingUrl;
+    return this.livestreamRepository.save(stream);
+  }
+
+  async getAnalytics(streamId: string, requester: { id: string; role: UserRole }): Promise<Livestream> {
+    const stream = await this.findOne(streamId);
+    const isOwner = stream.seller.id === requester.id;
+    const isModerator = requester.role === UserRole.MODERATOR || requester.role === UserRole.SUPER_ADMIN;
+    if (!isOwner && !isModerator) {
+      throw new ForbiddenException('You do not have permission to view analytics.');
+    }
+    return stream;
   }
 }

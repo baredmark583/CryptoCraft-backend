@@ -1,4 +1,4 @@
-import { IsString, IsNotEmpty, MinLength } from 'class-validator';
+import { IsString, IsNotEmpty, MinLength, IsArray, IsOptional, ArrayMaxSize } from 'class-validator';
 
 export class CreateForumThreadDto {
   @IsString()
@@ -10,4 +10,9 @@ export class CreateForumThreadDto {
   @IsNotEmpty()
   @MinLength(10)
   content: string;
+
+  @IsArray()
+  @IsOptional()
+  @ArrayMaxSize(5)
+  tags?: string[];
 }

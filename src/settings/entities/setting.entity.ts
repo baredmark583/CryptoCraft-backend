@@ -1,4 +1,4 @@
-import { Entity, Column, PrimaryColumn } from 'typeorm';
+import { Entity, Column, PrimaryColumn, UpdateDateColumn } from 'typeorm';
 
 @Entity('settings')
 export class Setting {
@@ -7,4 +7,10 @@ export class Setting {
 
   @Column('text')
   value: string;
+
+  @Column({ nullable: true })
+  updatedBy?: string;
+
+  @UpdateDateColumn({ type: 'timestamptz' })
+  updatedAt: Date;
 }

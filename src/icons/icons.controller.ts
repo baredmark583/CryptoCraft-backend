@@ -1,11 +1,13 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, ParseUUIDPipe } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseGuards, ParseUUIDPipe, UseInterceptors } from '@nestjs/common';
 import { IconsService } from './icons.service';
 import { CreateIconDto } from './dto/create-icon.dto';
 import { UpdateIconDto } from './dto/update-icon.dto';
+import { SyncIconsDto } from './dto/sync-icons.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { UserRole } from '../users/entities/user.entity';
+import { AuditInterceptor } from '../common/interceptors/audit.interceptor';
 
 @Controller('icons')
 export class IconsController {
@@ -18,6 +20,7 @@ export class IconsController {
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.SUPER_ADMIN)
+  @UseInterceptors(AuditInterceptor)
   @Post()
   create(@Body() createIconDto: CreateIconDto) {
     return this.iconsService.create(createIconDto);
@@ -25,9 +28,18 @@ export class IconsController {
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.SUPER_ADMIN)
+  @UseInterceptors(AuditInterceptor)
   @Patch('upsert')
   upsert(@Body() upsertIconDto: CreateIconDto) {
     return this.iconsService.upsert(upsertIconDto);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUPER_ADMIN)
+  @UseInterceptors(AuditInterceptor)
+  @Patch('sync-missing')
+  syncMissing(@Body() syncIconsDto: SyncIconsDto) {
+    return this.iconsService.syncMissing(syncIconsDto.icons);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -46,6 +58,7 @@ export class IconsController {
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.SUPER_ADMIN)
+  @UseInterceptors(AuditInterceptor)
   @Patch(':id')
   update(@Param('id', ParseUUIDPipe) id: string, @Body() updateIconDto: UpdateIconDto) {
     return this.iconsService.update(id, updateIconDto);
@@ -53,6 +66,7 @@ export class IconsController {
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.SUPER_ADMIN)
+  @UseInterceptors(AuditInterceptor)
   @Delete(':id')
   remove(@Param('id', ParseUUIDPipe) id: string) {
     return this.iconsService.remove(id);

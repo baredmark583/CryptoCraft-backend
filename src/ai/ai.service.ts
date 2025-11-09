@@ -1,452 +1,276 @@
-import { Injectable, InternalServerErrorException, BadRequestException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  InternalServerErrorException,
+  BadRequestException,
+  Logger,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { GoogleGenAI, Type, Modality } from '@google/genai';
 import { CategoriesService } from '../categories/categories.service';
-import { getCategoryNames } from '../constants'; // Assuming constants file is accessible
-import type { SellerAnalytics, SellerDashboardData, ImportedListingData } from '../types';
+import type {
+  GeneratedListing,
+  ImportedListingData,
+  SellerAnalytics,
+  SellerDashboardData,
+} from '../types';
+import type { CategorySchema } from '../constants';
+import { GeminiProvider } from './providers/gemini.provider';
+import { DeepSeekProvider } from './providers/deepseek.provider';
+import type { AiProvider } from './providers/ai.provider';
+import type {
+  AiProviderName,
+  AiProviderResult,
+  AiResponse,
+  AiScenario,
+} from './ai.types';
+import sharp from 'sharp';
+
+const ALLOWED_IMAGE_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
 @Injectable()
 export class AiService {
   private readonly logger = new Logger(AiService.name);
-  private readonly ai: GoogleGenAI;
+  private readonly providerRegistry: Record<AiProviderName, AiProvider>;
+  private readonly scenarioProviders: Record<AiScenario, AiProvider>;
+  private readonly maxImageBytes: number;
+  private readonly maxHtmlChars: number;
+  private readonly maxImageDimension: number;
+  private readonly jpegQuality: number;
 
   constructor(
-    private configService: ConfigService,
-    private categoriesService: CategoriesService,
-    ) {
-    const apiKey = this.configService.get<string>('API_KEY');
-    if (!apiKey) {
-      throw new InternalServerErrorException('Gemini API key is not configured');
-    }
-    this.ai = new GoogleGenAI({ apiKey });
+    private readonly configService: ConfigService,
+    private readonly categoriesService: CategoriesService,
+    private readonly gemini: GeminiProvider,
+    private readonly deepseek: DeepSeekProvider,
+  ) {
+    this.providerRegistry = {
+      gemini: this.gemini,
+      deepseek: this.deepseek,
+    };
+    this.scenarioProviders = {
+      text: this.resolveProvider('AI_PROVIDER_TEXT', 'deepseek'),
+      vision: this.resolveProvider('AI_PROVIDER_VISION', 'deepseek'),
+      'image-edit': this.resolveProvider('AI_PROVIDER_IMAGE_EDIT', 'gemini'),
+    };
+    this.maxHtmlChars = this.getNumberEnv('AI_MAX_HTML_CHARS', 60000);
+    const imageLimitMb = this.getNumberEnv('AI_MAX_IMAGE_MB', 4);
+    this.maxImageBytes = this.getNumberEnv('AI_MAX_IMAGE_BYTES', imageLimitMb * 1024 * 1024);
+    this.maxImageDimension = this.getNumberEnv('AI_MAX_IMAGE_DIMENSION', 1536);
+    this.jpegQuality = this.getNumberEnv('AI_IMAGE_JPEG_QUALITY', 82);
   }
 
-  async generateListingDetails(imageBase64: string, userDescription: string) {
-    const prompt = `Ты — интеллектуальный ассистент для маркетплейса CryptoCraft. Твоя задача — проанализировать изображение товара и краткое описание от пользователя, чтобы автоматически создать полноценное объявление.
+  async generateListingDetails(
+    imageBase64: string,
+    userDescription: string,
+  ): Promise<AiResponse<GeneratedListing>> {
+    const warnings: string[] = [];
+    const { base64 } = await this.normalizeImagePayload(imageBase64, {
+      scenario: 'vision',
+      warnings,
+    });
+    return this.runWithMetrics(
+      'vision',
+      provider => provider.generateListingDetails(base64, userDescription),
+      { warnings },
+    );
+  }
 
-    Пользовательское описание: "${userDescription}"
-    
-    Действуй в три этапа:
-    1.  **Классификация:** Определи наиболее подходящую категорию для этого товара из списка доступных категорий.
-    2.  **Извлечение Атрибутов:** На основе изображения и текста, извлеки значения для специфических характеристик (атрибутов), которые соответствуют выбранной категории. Если какую-то характеристику невозможно определить, оставь для нее пустое значение или пропусти ее.
-    3.  **Генерация Контента:** Напиши привлекательный, SEO-дружелюбный заголовок, подробное описание и предложи рыночную цену в USDT.
-    
-    Твой ответ ДОЛЖЕН быть только в формате JSON и строго соответствовать предоставленной схеме. Ключами в объекте 'dynamicAttributes' должны быть ТОЧНО такие же строки, как 'label' в схемах категорий (например, "Бренд", "Основной материал").
-    
-    ВАЖНО: Поле 'dynamicAttributes' ДОЛЖНО БЫТЬ СТРОКОЙ, содержащей валидный JSON. Например: "{\\"Материал\\": \\"Керамика\\", \\"Цвет\\": \\"Бежевый\\"}".`;
+  async editImage(
+    imageBase64: string,
+    mimeType: string,
+    prompt: string,
+  ): Promise<AiResponse<{ base64Image: string }>> {
+    const warnings: string[] = [];
+    const { base64, mimeType: sanitizedMime } = await this.normalizeImagePayload(
+      imageBase64,
+      {
+        scenario: 'image-edit',
+        mimeType,
+        warnings,
+      },
+    );
+    return this.runWithMetrics(
+      'image-edit',
+      provider => provider.editImage(base64, sanitizedMime, prompt),
+      { warnings },
+    );
+  }
 
-    const imagePart = {
-      inlineData: { mimeType: 'image/jpeg', data: imageBase64 },
+  async analyzeDocumentForVerification(imageBase64: string): Promise<AiResponse<any>> {
+    const warnings: string[] = [];
+    const { base64 } = await this.normalizeImagePayload(imageBase64, {
+      scenario: 'vision',
+      warnings,
+    });
+    return this.runWithMetrics(
+      'vision',
+      provider => provider.analyzeDocumentForVerification(base64),
+      { warnings },
+    );
+  }
+
+  async getAnalyticsInsights(
+    analyticsData: SellerAnalytics,
+  ): Promise<AiResponse<any>> {
+    return this.runWithMetrics('text', provider =>
+      provider.getAnalyticsInsights(analyticsData),
+    );
+  }
+
+  async generateDashboardFocus(
+    dashboardData: SellerDashboardData,
+  ): Promise<AiResponse<any>> {
+    return this.runWithMetrics('text', provider =>
+      provider.generateDashboardFocus(dashboardData),
+    );
+  }
+
+  async processImportedHtml(html: string): Promise<AiResponse<ImportedListingData>> {
+    const { payload, warnings } = this.truncateHtmlPayload(html);
+    return this.runWithMetrics(
+      'text',
+      provider => provider.processImportedHtml(payload),
+      { warnings },
+    );
+  }
+
+  async generateCategoryStructure(description: string): Promise<AiResponse<CategorySchema[]>> {
+    return this.runWithMetrics('text', provider =>
+      provider.generateCategoryStructure(description),
+    );
+  }
+
+  async generateAndSaveSubcategories(
+    parentId: string,
+    parentName: string,
+  ): Promise<AiResponse<{ success: boolean; generatedCount: number; parentId: string }>> {
+    const generated = await this.runWithMetrics('text', provider =>
+      provider.generateSubcategories(parentName),
+    );
+    await this.categoriesService.batchCreateSubcategories(
+      generated.data as CategorySchema[],
+      parentId,
+    );
+    return {
+      data: {
+        success: true,
+        generatedCount: Array.isArray(generated.data) ? generated.data.length : 0,
+        parentId,
+      },
+      meta: generated.meta,
     };
+  }
 
+  private async runWithMetrics<T>(
+    scenario: AiScenario,
+    executor: (provider: AiProvider) => Promise<AiProviderResult<T>>,
+    extra?: { warnings?: string[] },
+  ): Promise<AiResponse<T>> {
+    const provider = this.scenarioProviders[scenario];
+    const startedAt = Date.now();
     try {
-      const response = await this.ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: { parts: [imagePart, { text: prompt }] },
-        config: {
-          responseMimeType: 'application/json',
-          responseSchema: {
-            type: Type.OBJECT,
-            properties: {
-              title: { type: Type.STRING },
-              description: { type: Type.STRING },
-              price: { type: Type.NUMBER },
-              category: { type: Type.STRING, enum: getCategoryNames() },
-              dynamicAttributes: { type: Type.STRING },
-            },
-            required: ["title", "description", "price", "category", "dynamicAttributes"]
-          }
-        }
-      });
-      
-      const parsedJson = JSON.parse(response.text);
-      if (typeof parsedJson.dynamicAttributes === 'string') {
-          parsedJson.dynamicAttributes = JSON.parse(parsedJson.dynamicAttributes);
+      const { data, usage } = await executor(provider);
+      return {
+        data,
+        meta: {
+          provider: provider.name,
+          scenario,
+          latencyMs: Date.now() - startedAt,
+          usage,
+          warnings: extra?.warnings?.length ? extra.warnings : undefined,
+        },
+      };
+    } catch (error) {
+      this.logger.error(
+        `AI ${scenario} call via ${provider.name} failed`,
+        error instanceof Error ? error.stack : error,
+      );
+      if (error instanceof BadRequestException || error instanceof InternalServerErrorException) {
+        throw error;
       }
-      return parsedJson;
-    } catch (error) {
-      console.error("Error in generateListingDetails:", error);
-      throw new InternalServerErrorException('Failed to generate listing details from AI');
+      throw new InternalServerErrorException('Сервис AI временно недоступен');
     }
   }
 
-  async editImage(imageBase64: string, mimeType: string, prompt: string): Promise<{ base64Image: string }> {
-     try {
-        const response = await this.ai.models.generateContent({
-            // FIX: Updated model name to 'gemini-2.5-flash-image' as per guidelines.
-            model: 'gemini-2.5-flash-image',
-            contents: { parts: [{ inlineData: { data: imageBase64, mimeType } }, { text: prompt }] },
-            config: { responseModalities: [Modality.IMAGE, Modality.TEXT] },
-        });
-
-        for (const part of response.candidates[0].content.parts) {
-            if (part.inlineData) {
-                return { base64Image: part.inlineData.data };
-            }
-        }
-        throw new Error("AI did not return an image.");
-    } catch (error) {
-        console.error("Error in editImage:", error);
-        if (error.message?.includes('RESOURCE_EXHAUSTED')) {
-             throw new BadRequestException('RATE_LIMIT:Слишком много запросов. Пожалуйста, попробуйте еще раз через минуту.');
-        }
-        throw new InternalServerErrorException('Failed to edit image with AI');
+  private async normalizeImagePayload(
+    base64: string,
+    options: { scenario: AiScenario; mimeType?: string; warnings: string[] },
+  ): Promise<{ base64: string; mimeType: string }> {
+    const mime =
+      options.mimeType && ALLOWED_IMAGE_MIME_TYPES.has(options.mimeType.toLowerCase())
+        ? options.mimeType
+        : 'image/jpeg';
+    const buffer = Buffer.from(base64, 'base64');
+    if (buffer.length <= this.maxImageBytes) {
+      return { base64, mimeType: mime };
     }
-  }
-  
-  async analyzeDocumentForVerification(imageBase64: string) {
-    const prompt = `Проанализируй это изображение. 
-1. Определи, является ли это изображение официальным документом, удостоверяющим личность (например, паспорт, водительские права, ID-карта).
-2. Если это документ, извлеки из него полное имя (Фамилия, Имя, Отчество). Если имя не указано или его невозможно прочитать, оставь поле пустым.
-Ответь только в формате JSON, соответствующем предоставленной схеме.`;
 
+    this.logger.warn(
+      `Image payload for ${options.scenario} is ${this.bytesToMb(buffer.length)}MB, attempting resize`,
+    );
     try {
-        const response = await this.ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: { parts: [{ inlineData: { data: imageBase64, mimeType: 'image/jpeg' } }, { text: prompt }] },
-            config: {
-                responseMimeType: 'application/json',
-                responseSchema: {
-                    type: Type.OBJECT,
-                    properties: {
-                        isDocument: { type: Type.BOOLEAN },
-                        fullName: { type: Type.STRING }
-                    },
-                    required: ["isDocument"]
-                }
-            }
-        });
-        return JSON.parse(response.text);
+      const resized = await sharp(buffer)
+        .rotate()
+        .resize({
+          width: this.maxImageDimension,
+          height: this.maxImageDimension,
+          fit: 'inside',
+        })
+        .toFormat('jpeg', { quality: this.jpegQuality, mozjpeg: true })
+        .toBuffer();
+
+      if (resized.length > this.maxImageBytes) {
+        throw new BadRequestException(
+          `Изображение остаётся больше ${this.bytesToMb(this.maxImageBytes)}MB даже после сжатия`,
+        );
+      }
+
+      options.warnings.push('IMAGE_RESIZED');
+      return { base64: resized.toString('base64'), mimeType: 'image/jpeg' };
     } catch (error) {
-        console.error("Error in analyzeDocumentForVerification:", error);
-        throw new InternalServerErrorException('Failed to analyze document with AI');
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      this.logger.error('Failed to downscale oversized image', error);
+      throw new InternalServerErrorException(
+        'Не удалось обработать изображение. Попробуйте файл меньшего размера.',
+      );
     }
   }
 
-  async getAnalyticsInsights(analyticsData: SellerAnalytics) {
-       const prompt = `Проанализируй JSON-объект с данными по аналитике продавца на маркетплейсе. Выступи в роли эксперта по e-commerce и дай 3-4 кратких, но очень конкретных и действенных совета, которые помогут продавцу увеличить продажи.
-
-        Данные для анализа:
-        ${JSON.stringify(analyticsData, null, 2)}
-        
-        Твоя задача:
-        1.  Изучить метрики: просмотры, продажи, конверсию, популярные товары, источники трафика.
-        2.  Найти сильные и слабые стороны, а также неиспользованные возможности.
-        3.  Сформулировать четкие рекомендации. Например, вместо "улучшите фото", напиши "для товара 'X' с высоким числом просмотров, но низкой конверсией, стоит добавить видеообзор".
-        4.  Ответь ТОЛЬКО в формате JSON, строго соответствующем предоставленной схеме.`;
-
-    try {
-        const response = await this.ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: { parts: [{ text: prompt }] },
-            config: {
-                responseMimeType: 'application/json',
-                responseSchema: {
-                    type: Type.ARRAY,
-                    items: {
-                        type: Type.OBJECT,
-                        properties: {
-                            title: { type: Type.STRING },
-                            recommendation: { type: Type.STRING },
-                            type: { type: Type.STRING, enum: ['OPTIMIZATION', 'OPPORTUNITY', 'WARNING'] }
-                        },
-                        required: ['title', 'recommendation', 'type']
-                    }
-                }
-            }
-        });
-        return JSON.parse(response.text);
-    } catch (error) {
-        console.error("Error in getAnalyticsInsights:", error);
-        throw new InternalServerErrorException('Failed to get analytics insights from AI');
+  private truncateHtmlPayload(html: string): { payload: string; warnings?: string[] } {
+    if (!html) {
+      throw new BadRequestException('HTML контент не должен быть пустым');
     }
-  }
-  
-  async generateDashboardFocus(dashboardData: SellerDashboardData) {
-      const prompt = `Ты — AI-ассистент и бизнес-коуч для продавца на маркетплейсе. Проанализируй JSON с данными о его сегодняшней активности. Твоя задача — определить САМОЕ ВАЖНОЕ действие, на котором ему стоит сфокусироваться ПРЯМО СЕЙЧАС, и дать краткий, мотивирующий совет.
-
-        Приоритеты для анализа:
-        1.  Новые заказы (самый высокий приоритет).
-        2.  Новые сообщения (второй по важности, требует быстрого ответа).
-        3.  Добавления в избранное (отличная возможность для персонального предложения).
-        4.  Если ничего срочного нет, предложи стратегическое действие (проанализировать продажи, создать промокод).
-
-        Данные для анализа:
-        ${JSON.stringify(dashboardData, null, 2)}
-
-        Твой ответ ДОЛЖЕН быть только в формате JSON и строго соответствовать предоставленной схеме. Поле 'ctaLink' должно быть одним из: 'sales', 'chat', 'analytics', 'settings'.`;
-
-       try {
-        const response = await this.ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: { parts: [{ text: prompt }] },
-            config: {
-                responseMimeType: 'application/json',
-                responseSchema: {
-                    type: Type.OBJECT,
-                    properties: {
-                        title: { type: Type.STRING },
-                        reason: { type: Type.STRING },
-                        ctaText: { type: Type.STRING },
-                        ctaLink: { type: Type.STRING, enum: ['sales', 'chat', 'analytics', 'settings'] },
-                    },
-                    required: ['title', 'reason', 'ctaText', 'ctaLink']
-                }
-            }
-        });
-        return JSON.parse(response.text);
-    } catch (error) {
-        console.error("Error in generateDashboardFocus:", error);
-        throw new InternalServerErrorException('Failed to generate dashboard focus from AI');
+    if (html.length <= this.maxHtmlChars) {
+      return { payload: html };
     }
-  }
-  
-  async processImportedHtml(html: string): Promise<ImportedListingData> {
-    const promptInstructions = `Проанализируй HTML-код страницы товара. Игнорируй навигацию, рекламу, похожие товары.
-Ответ должен быть СТРОГО в формате JSON, по схеме.
-
-- title: SEO-заголовок.
-- description: Подробное описание.
-- originalPrice: Цена (число).
-- originalCurrency: Валюта ("грн", "$").
-- imageUrls: Массив ПОЛНЫХ URL-адресов изображений.
-- category: Одна из категорий: [${getCategoryNames().join(', ')}].
-- dynamicAttributes: JSON-строка с атрибутами. Пример: "{\\"Материал\\": \\"Хлопок\\"}".
-- saleType: "AUCTION" или "FIXED_PRICE".
-- giftWrapAvailable: true/false.
-
-HTML для анализа:`;
-
-    const fullPrompt = `${promptInstructions}\n\n${html}`;
-    
-    try {
-        const response = await this.ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: fullPrompt,
-            config: {
-                responseMimeType: 'application/json',
-                responseSchema: {
-                    type: Type.OBJECT,
-                    properties: {
-                        title: { type: Type.STRING },
-                        description: { type: Type.STRING },
-                        originalPrice: { type: Type.NUMBER },
-                        originalCurrency: { type: Type.STRING },
-                        imageUrls: { type: Type.ARRAY, items: { type: Type.STRING } },
-                        category: { type: Type.STRING, enum: getCategoryNames() },
-                        dynamicAttributes: { type: Type.STRING },
-                        saleType: { type: Type.STRING, enum: ['FIXED_PRICE', 'AUCTION'] },
-                        giftWrapAvailable: { type: Type.BOOLEAN }
-                    },
-                    required: ["title", "description", "originalPrice", "originalCurrency", "imageUrls", "category", "dynamicAttributes", "saleType", "giftWrapAvailable"]
-                }
-            }
-        });
-
-        const parsedJson = JSON.parse(response.text);
-        if (typeof parsedJson.dynamicAttributes === 'string') {
-            try {
-                parsedJson.dynamicAttributes = JSON.parse(parsedJson.dynamicAttributes);
-            } catch (e) {
-                this.logger.warn(`AI returned malformed JSON for dynamicAttributes: "${parsedJson.dynamicAttributes}". Defaulting to empty object.`);
-                parsedJson.dynamicAttributes = {}; // Graceful failure
-            }
-        } else if (typeof parsedJson.dynamicAttributes !== 'object') {
-             parsedJson.dynamicAttributes = {};
-        }
-        return parsedJson;
-    } catch (error) {
-        this.logger.error(`Error in processImportedHtml:`, error);
-        if (error.message?.includes('RESOURCE_EXHAUSTED')) {
-            throw new BadRequestException('Превышен лимит запросов к AI. Пожалуйста, попробуйте позже.');
-        }
-        throw new InternalServerErrorException('Failed to process HTML with AI');
-    }
+    this.logger.warn(
+      `HTML payload truncated from ${html.length} chars to ${this.maxHtmlChars}`,
+    );
+    return {
+      payload: html.slice(0, this.maxHtmlChars),
+      warnings: ['HTML_TRUNCATED'],
+    };
   }
 
-  async generateCategoryStructure(description: string) {
-    const prompt = `Ты — AI-архитектор для e-commerce платформ. Твоя задача — создать полную и логичную иерархическую структуру категорий для маркетплейса на основе его описания.
-
-    **Описание маркетплейса:** "${description}"
-
-    **Требования к результату:**
-    1.  **Глубина:** Структура должна иметь до 4 уровней вложенности (категория -> подкатегория -> ...).
-    2.  **Поля (Атрибуты):** Для КАЖДОЙ категории и подкатегории сгенерируй от 2 до 5 релевантных полей (атрибутов), которые помогут продавцам детально описывать свои товары.
-    3.  **Формат полей:** Каждое поле должно иметь 'name' (техническое, snake_case), 'label' (читаемое), 'type' ('text', 'number', 'select'), и необязательные 'required' (boolean) и 'options' (массив строк для типа 'select').
-    4.  **Формат ответа:** Ответ должен быть СТРОГО в формате JSON. Это должен быть массив объектов, где каждый объект представляет категорию верхнего уровня и может содержать вложенный массив 'subcategories'.
-
-    Пример требуемой структуры для одного элемента:
-    {
-      "name": "Одежда",
-      "fields": [
-        { "name": "size", "label": "Размер", "type": "select", "options": ["XS", "S", "M", "L", "XL"], "required": true },
-        { "name": "color", "label": "Цвет", "type": "text", "required": false }
-      ],
-      "subcategories": [
-        {
-          "name": "Женская одежда",
-          "fields": [...],
-          "subcategories": [...]
-        }
-      ]
-    }
-    `;
-
-    const categoryFieldSchema = {
-        type: Type.OBJECT,
-        properties: {
-            name: { type: Type.STRING, description: "Техническое имя поля, в snake_case, например 'main_material'" },
-            label: { type: Type.STRING, description: "Отображаемое имя поля, например 'Основной материал'" },
-            type: { type: Type.STRING, enum: ['text', 'number', 'select'] },
-            required: { type: Type.BOOLEAN, description: "Является ли поле обязательным" },
-            options: { 
-                type: Type.ARRAY, 
-                items: { type: Type.STRING },
-                description: "Массив опций для полей типа 'select'"
-            }
-        },
-        required: ["name", "label", "type"]
-    };
-    
-    // Manually unfold the recursive schema to a fixed depth to avoid API errors
-    // Level 4 (Innermost, no subcategories)
-    const categorySchemaLevel4 = {
-        type: Type.OBJECT,
-        properties: {
-            name: { type: Type.STRING },
-            fields: { type: Type.ARRAY, items: categoryFieldSchema },
-        },
-        required: ['name', 'fields'],
-    };
-
-    // Level 3
-    const categorySchemaLevel3 = {
-        type: Type.OBJECT,
-        properties: {
-            name: { type: Type.STRING },
-            fields: { type: Type.ARRAY, items: categoryFieldSchema },
-            subcategories: { type: Type.ARRAY, items: categorySchemaLevel4 },
-        },
-        required: ['name', 'fields'],
-    };
-
-    // Level 2
-    const categorySchemaLevel2 = {
-        type: Type.OBJECT,
-        properties: {
-            name: { type: Type.STRING },
-            fields: { type: Type.ARRAY, items: categoryFieldSchema },
-            subcategories: { type: Type.ARRAY, items: categorySchemaLevel3 },
-        },
-        required: ['name', 'fields'],
-    };
-    
-    // Level 1 (Root)
-    const categorySchemaLevel1 = {
-        type: Type.OBJECT,
-        properties: {
-            name: { type: Type.STRING },
-            fields: { type: Type.ARRAY, items: categoryFieldSchema },
-            subcategories: { type: Type.ARRAY, items: categorySchemaLevel2 },
-        },
-        required: ['name', 'fields'],
-    };
-
-
-    try {
-        const response = await this.ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: { parts: [{ text: prompt }] },
-            config: {
-                responseMimeType: 'application/json',
-                responseSchema: {
-                    type: Type.ARRAY,
-                    items: categorySchemaLevel1
-                }
-            }
-        });
-        return JSON.parse(response.text);
-    } catch (error) {
-        console.error("Error in generateCategoryStructure:", error);
-        throw new InternalServerErrorException('Failed to generate category structure with AI');
-    }
+  private getNumberEnv(key: string, fallback: number): number {
+    const raw = this.configService.get<string>(key);
+    const parsed = raw ? Number(raw) : NaN;
+    return Number.isFinite(parsed) ? parsed : fallback;
   }
 
-  async generateAndSaveSubcategories(parentId: string, parentName: string) {
-    const prompt = `Ты — AI-архитектор для e-commerce платформ. Твоя задача — создать полную и логичную иерархическую структуру ПОДКАГЕГОРИЙ для заданной родительской категории.
-
-    **Родительская категория:** "${parentName}"
-
-    **Требования к результату:**
-    1.  **Глубина:** Структура должна иметь до 3 уровней вложенности (подкатегория -> под-подкатегория -> ...).
-    2.  **Поля (Атрибуты):** Для КАЖДОЙ сгенерированной подкатегории, придумай от 2 до 5 релевантных полей (атрибутов), которые помогут продавцам детально описывать свои товары.
-    3.  **Формат полей:** Каждое поле должно иметь 'name' (техническое, snake_case), 'label' (читаемое), 'type' ('text', 'number', 'select'), и необязательные 'required' (boolean) и 'options' (массив строк для типа 'select').
-    4.  **Формат ответа:** Ответ должен быть СТРОГО в формате JSON. Это должен быть массив объектов, где каждый объект представляет подкатегорию первого уровня для "${parentName}" и может содержать вложенный массив 'subcategories'.
-    
-    Не включай в ответ саму родительскую категорию "${parentName}". Только её дочерние элементы.`;
-
-    const categoryFieldSchema = {
-        type: Type.OBJECT,
-        properties: {
-            name: { type: Type.STRING, description: "Техническое имя поля, в snake_case, например 'main_material'" },
-            label: { type: Type.STRING, description: "Отображаемое имя поля, например 'Основной материал'" },
-            type: { type: Type.STRING, enum: ['text', 'number', 'select'] },
-            required: { type: Type.BOOLEAN, description: "Является ли поле обязательным" },
-            options: { type: Type.ARRAY, items: { type: Type.STRING }, description: "Массив опций для полей типа 'select'" }
-        },
-        required: ["name", "label", "type"]
-    };
-    
-    const categorySchemaLevel3 = {
-        type: Type.OBJECT,
-        properties: {
-            name: { type: Type.STRING },
-            fields: { type: Type.ARRAY, items: categoryFieldSchema },
-        },
-        required: ['name', 'fields'],
-    };
-
-    const categorySchemaLevel2 = {
-        type: Type.OBJECT,
-        properties: {
-            name: { type: Type.STRING },
-            fields: { type: Type.ARRAY, items: categoryFieldSchema },
-            subcategories: { type: Type.ARRAY, items: categorySchemaLevel3 },
-        },
-        required: ['name', 'fields'],
-    };
-    
-    const categorySchemaLevel1 = {
-        type: Type.OBJECT,
-        properties: {
-            name: { type: Type.STRING },
-            fields: { type: Type.ARRAY, items: categoryFieldSchema },
-            subcategories: { type: Type.ARRAY, items: categorySchemaLevel2 },
-        },
-        required: ['name', 'fields'],
-    };
-
-
-    try {
-        const response = await this.ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: { parts: [{ text: prompt }] },
-            config: {
-                responseMimeType: 'application/json',
-                responseSchema: {
-                    type: Type.ARRAY,
-                    items: categorySchemaLevel1
-                }
-            }
-        });
-        const generatedStructure = JSON.parse(response.text);
-
-        await this.categoriesService.batchCreateSubcategories(generatedStructure, parentId);
-        
-        return { success: true, message: 'Subcategories generated and saved successfully.' };
-    } catch (error) {
-        console.error("Error in generateAndSaveSubcategories:", error);
-        throw new InternalServerErrorException('Failed to generate and save subcategories with AI');
+  private resolveProvider(envKey: string, fallback: AiProviderName): AiProvider {
+    const requested = (this.configService.get<string>(envKey)?.toLowerCase() as AiProviderName) || fallback;
+    const provider = this.providerRegistry[requested] ?? this.providerRegistry[fallback];
+    if (!this.providerRegistry[requested]) {
+      this.logger.warn(
+        `Provider "${requested}" from ${envKey} is unavailable. Falling back to ${provider.name}`,
+      );
     }
+    return provider;
+  }
+
+  private bytesToMb(bytes: number): string {
+    return (bytes / (1024 * 1024)).toFixed(2);
   }
 }

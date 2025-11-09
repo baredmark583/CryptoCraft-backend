@@ -1,4 +1,7 @@
 import { Controller, Post, Body, UseGuards, Req, Get, Patch, Param, ParseUUIDPipe } from '@nestjs/common';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { UserRole } from '../users/entities/user.entity';
 import { OrdersService } from './orders.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -15,6 +18,8 @@ export class OrdersController {
     return this.ordersService.create(createOrderDto, userId);
   }
 
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.SUPER_ADMIN)
   @Get()
   findAllAdmin() {
     // This is an admin-only route for now.

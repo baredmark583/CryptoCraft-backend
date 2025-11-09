@@ -11,6 +11,10 @@ import { WebLoginDto } from './dto/web-login.dto';
 @Injectable()
 export class AuthService {
   private readonly botToken: string;
+  // Simple in-memory brute-force protection for admin login
+  private failedAdminAttempts: Map<string, { count: number; lockedUntil?: number }> = new Map();
+  private readonly maxAdminAttempts = 5;
+  private readonly lockoutMs = 15 * 60 * 1000; // 15 minutes
 
   constructor(
     private usersService: UsersService,
@@ -88,13 +92,29 @@ export class AuthService {
   }
 
   async validateAdmin(adminLoginDto: AdminLoginDto): Promise<Partial<User>> {
+    const key = adminLoginDto.email.trim().toLowerCase();
+    const entry = this.failedAdminAttempts.get(key) || { count: 0 };
+    const now = Date.now();
+    if (entry.lockedUntil && now < entry.lockedUntil) {
+      throw new UnauthorizedException('Account temporarily locked due to multiple failed attempts. Try again later.');
+    }
     const adminEmail = (this.configService.get<string>('SUPER_ADMIN_EMAIL') || 'admin').trim();
     const adminPass = (this.configService.get<string>('SUPER_ADMIN_PASSWORD') || 'admin').trim();
 
     if (adminLoginDto.email.trim() === adminEmail && adminLoginDto.password.trim() === adminPass) {
+      // reset attempts on success
+      this.failedAdminAttempts.delete(key);
       // For admin, we create a user-like object for the JWT payload
       return { id: 'admin-user', email: adminEmail, name: 'Administrator', role: UserRole.SUPER_ADMIN };
     }
+    // failed attempt
+    entry.count += 1;
+    if (entry.count >= this.maxAdminAttempts) {
+      entry.lockedUntil = now + this.lockoutMs;
+    }
+    this.failedAdminAttempts.set(key, entry);
+    // small generic delay to slow bots
+    await new Promise(r => setTimeout(r, 200));
     throw new UnauthorizedException('Invalid admin credentials');
   }
 

@@ -8,7 +8,7 @@ import { User } from '../users/entities/user.entity';
 export interface AdminTransaction {
     id: string;
     date: string;
-    type: 'Sale' | 'Withdrawal' | 'Deposit' | 'Commission' | 'Refund';
+    type: 'Sale' | 'Withdrawal' | 'Deposit' | 'Commission' | 'Refund' | 'Escrow Hold';
     from: { name: string };
     to: { name: string };
     amount: number;
@@ -26,7 +26,7 @@ export class TransactionsService {
 
     async findAll(): Promise<AdminTransaction[]> {
         const orders = await this.orderRepository.find({
-            relations: ['buyer', 'seller'],
+            relations: ['buyer', 'seller', 'escrow'],
             order: { createdAt: 'DESC' },
         });
 
@@ -34,6 +34,17 @@ export class TransactionsService {
         const transactions: AdminTransaction[] = [];
 
         for (const order of orders) {
+            if (order.paymentMethod === 'ESCROW') {
+                transactions.push({
+                    id: `ESCROW-${order.id}`,
+                    date: new Date(order.createdAt).toLocaleDateString(),
+                    type: order.checkoutMode === 'DEPOSIT' ? 'Deposit' : 'Escrow Hold',
+                    from: { name: order.buyer?.name ?? 'Buyer' },
+                    to: { name: 'Platform Treasury' },
+                    amount: order.escrow?.amount ?? order.total,
+                    status: order.escrow?.status === 'FUNDED' ? 'Completed' : 'Pending',
+                });
+            }
             if (order.status === 'COMPLETED' || order.status === 'DELIVERED') {
                 // Sale transaction from buyer to seller
                 transactions.push({

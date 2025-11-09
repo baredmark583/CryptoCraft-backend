@@ -104,6 +104,27 @@ export class IconsService {
     return this.iconRepository.save(icon);
   }
 
+  async syncMissing(iconDtos: CreateIconDto[]) {
+    if (!iconDtos || iconDtos.length === 0) {
+      return { created: 0 };
+    }
+
+    const existing = await this.iconRepository.find({ select: ['name'] });
+    const knownNames = new Set(existing.map(icon => icon.name));
+    let created = 0;
+
+    for (const dto of iconDtos) {
+      if (!dto.name || knownNames.has(dto.name)) {
+        continue;
+      }
+      await this.upsert(dto);
+      knownNames.add(dto.name);
+      created += 1;
+    }
+
+    return { created };
+  }
+
   async remove(id: string) {
     const result = await this.iconRepository.delete(id);
     if (result.affected === 0) {
