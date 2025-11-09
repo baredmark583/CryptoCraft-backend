@@ -99,6 +99,15 @@ async function bootstrap() {
   app.use((req, res, next) => {
     const method = req.method.toUpperCase();
     if (method === 'GET' || method === 'HEAD' || method === 'OPTIONS') return next();
+
+    // Skip CSRF check for auth endpoints (login/logout/token refresh)
+    const requestPath = typeof req.path === 'string'
+      ? req.path
+      : (typeof req.originalUrl === 'string' ? req.originalUrl.split('?')[0] : '');
+    if (requestPath.startsWith('/auth/')) {
+      return next();
+    }
+
     const cookieHeader = req.headers.cookie || '';
     const cookies = cookieHeader.split(';').map(v => v.trim()).map(v => v.split('=')).reduce((acc, [k, ...rest]) => ({ ...acc, [k]: decodeURIComponent(rest.join('=')) }), {} as Record<string, string>);
     if (cookies['access_token']) {
