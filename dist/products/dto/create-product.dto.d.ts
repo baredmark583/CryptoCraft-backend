@@ -1,0 +1,36 @@
+import { AuthenticationStatus, ModerationStatus, ProductVariant, VariantAttribute } from '../entities/product.entity';
+export declare class CreateProductDto {
+    title: string;
+    description: string;
+    price?: number;
+    salePrice?: number;
+    imageUrls: string[];
+    videoUrl?: string;
+    category: string;
+    sellerId: string;
+    dynamicAttributes: Record<string, string | number>;
+    variants?: ProductVariant[];
+    variantAttributes?: VariantAttribute[];
+    isPromoted?: boolean;
+    uniqueness?: 'ONE_OF_A_KIND' | 'LIMITED_EDITION' | 'MADE_TO_ORDER';
+    productType?: 'PHYSICAL' | 'DIGITAL' | 'SERVICE';
+    digitalFileUrl?: string;
+    giftWrapAvailable?: boolean;
+    giftWrapPrice?: number;
+    purchaseCost?: number;
+    weight?: number;
+    isB2BEnabled?: boolean;
+    b2bMinQuantity?: number;
+    b2bPrice?: number;
+    turnaroundTime?: string;
+    serviceLocation?: 'REMOTE' | 'ON-SITE';
+    warrantyDays?: number;
+    serialNumber?: string;
+    isAuction?: boolean;
+    auctionEnds?: number;
+    startingBid?: number;
+    isAuthenticationAvailable?: boolean;
+    authenticationStatus?: AuthenticationStatus;
+    status?: ModerationStatus;
+    rejectionReason?: string;
+}
