@@ -22,5 +22,6 @@ import { JwtModule } from '@nestjs/jwt';
   ],
   controllers: [LivestreamsController],
   providers: [LivestreamsService],
+  exports: [LivestreamsService],
 })
 export class LivestreamsModule {}

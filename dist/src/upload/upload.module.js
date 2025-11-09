@@ -19,6 +19,7 @@ exports.UploadModule = UploadModule = __decorate([
         imports: [cloudinary_module_1.CloudinaryModule],
         controllers: [upload_controller_1.UploadController],
         providers: [upload_service_1.UploadService],
+        exports: [upload_service_1.UploadService],
     })
 ], UploadModule);
 //# sourceMappingURL=upload.module.js.map

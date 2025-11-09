@@ -22,6 +22,7 @@ exports.AiModule = AiModule = __decorate([
         imports: [config_1.ConfigModule, categories_module_1.CategoriesModule],
         controllers: [ai_controller_1.AiController],
         providers: [ai_service_1.AiService, gemini_provider_1.GeminiProvider, deepseek_provider_1.DeepSeekProvider],
+        exports: [ai_service_1.AiService],
     })
 ], AiModule);
 //# sourceMappingURL=ai.module.js.map

@@ -10,5 +10,6 @@ import { CategoriesModule } from 'src/categories/categories.module';
   imports: [ConfigModule, CategoriesModule],
   controllers: [AiController],
   providers: [AiService, GeminiProvider, DeepSeekProvider],
+  exports: [AiService],
 })
 export class AiModule {}

@@ -34,6 +34,7 @@ exports.LivestreamsModule = LivestreamsModule = __decorate([
         ],
         controllers: [livestreams_controller_1.LivestreamsController],
         providers: [livestreams_service_1.LivestreamsService],
+        exports: [livestreams_service_1.LivestreamsService],
     })
 ], LivestreamsModule);
 //# sourceMappingURL=livestreams.module.js.map
