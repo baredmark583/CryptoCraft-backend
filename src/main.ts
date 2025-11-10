@@ -109,10 +109,17 @@ async function bootstrap() {
     }
 
     const cookieHeader = req.headers.cookie || '';
-    const cookies = cookieHeader.split(';').map(v => v.trim()).map(v => v.split('=')).reduce((acc, [k, ...rest]) => ({ ...acc, [k]: decodeURIComponent(rest.join('=')) }), {} as Record<string, string>);
-    if (cookies['access_token']) {
-      const csrfHeader = req.headers['x-csrf-token'];
-      if (!csrfHeader || csrfHeader !== cookies['csrf_token']) {
+    const cookies = cookieHeader
+      .split(';')
+      .map(v => v.trim())
+      .map(v => v.split('='))
+      .reduce((acc, [k, ...rest]) => ({ ...acc, [k]: decodeURIComponent(rest.join('=')) }), {} as Record<string, string>);
+
+    const csrfCookie = cookies['csrf_token'];
+    if (cookies['access_token'] && csrfCookie) {
+      const headerValue = req.headers['x-csrf-token'];
+      const csrfHeader = Array.isArray(headerValue) ? headerValue[0] : headerValue;
+      if (csrfHeader && csrfHeader !== csrfCookie) {
         res.status(403).json({ message: 'Invalid CSRF token' });
         return;
       }
