@@ -11,7 +11,10 @@ export class DeepSeekProvider implements AiProvider {
   private readonly baseUrl: string;
 
   constructor(private readonly configService: ConfigService) {
-    this.apiKey = this.configService.get<string>('DEEPSEEK_API_KEY') || '';
+    this.apiKey =
+      this.configService.get<string>('DEEPSEEK_API_KEY') ||
+      this.configService.get<string>('AI_API_KEY') ||
+      '';
     this.baseUrl = this.configService.get<string>('DEEPSEEK_API_BASE_URL') || 'https://api.deepseek.com';
   }
 
