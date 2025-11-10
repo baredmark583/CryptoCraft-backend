@@ -3,10 +3,14 @@ import { PinoLogger } from 'nestjs-pino';
 import { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import type { Request } from 'express';
+import { LogBufferService } from '../../monitoring/log-buffer.service';
 
 @Injectable()
 export class RequestLoggerInterceptor implements NestInterceptor {
-  constructor(private readonly logger: PinoLogger) {}
+  constructor(
+    private readonly logger: PinoLogger,
+    private readonly logBuffer: LogBufferService,
+  ) {}
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
     if (context.getType() !== 'http') {
@@ -26,30 +30,43 @@ export class RequestLoggerInterceptor implements NestInterceptor {
       tap({
         next: () => {
           const durationMs = Number(process.hrtime.bigint() - start) / 1_000_000;
+          const duration = Number(durationMs.toFixed(2));
           this.logger.info(
             {
               method,
               url: originalUrl,
               statusCode: response.statusCode,
-              durationMs: Number(durationMs.toFixed(2)),
+              durationMs: duration,
               traceId,
             },
             'http_request_complete',
           );
+          this.logBuffer.addEntry({
+            level: 'INFO',
+            message: `${method} ${originalUrl} → ${response.statusCode}`,
+            meta: { statusCode: response.statusCode, durationMs: duration, traceId },
+          });
         },
         error: (error) => {
           const durationMs = Number(process.hrtime.bigint() - start) / 1_000_000;
+          const duration = Number(durationMs.toFixed(2));
+          const statusCode = error?.status || response.statusCode || 500;
           this.logger.error(
             {
               method,
               url: originalUrl,
-              statusCode: error?.status || response.statusCode || 500,
-              durationMs: Number(durationMs.toFixed(2)),
+              statusCode,
+              durationMs: duration,
               traceId,
               message: error?.message,
             },
             'http_request_error',
           );
+          this.logBuffer.addEntry({
+            level: 'ERROR',
+            message: `${method} ${originalUrl} → ${statusCode}`,
+            meta: { durationMs: duration, traceId, error: error?.message },
+          });
         },
       }),
     );
